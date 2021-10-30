@@ -2,7 +2,7 @@ const JSON_PATH_SUFFIX: &str = ".json";
 const TOML_PATH_SUFFIX: &str = ".toml";
 const YAML_PATH_SUFFIX: &str = ".yaml";
 
-const LUA_PATH_SUFFIX: &str = ".yaml";
+const LUA_PATH_SUFFIX: &str = ".lua";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum FileFormat {
@@ -13,7 +13,7 @@ pub enum FileFormat {
     Yaml,
 
     Lua,
-    // Template,
+    Template,
 }
 
 impl Default for FileFormat {
@@ -44,6 +44,7 @@ impl FileFormat {
             "toml" => FileFormat::Toml,
             "yaml" => FileFormat::Yaml,
             "lua" => FileFormat::Lua,
+            "template" => FileFormat::Template,
             _ => FileFormat::Unknown,
         }
     }
@@ -90,5 +91,6 @@ impl UnitFile {
 #[derive(Debug)]
 pub enum Unit {
     File(UnitFile),
+    Check,
     Merge,
 }

@@ -99,7 +99,11 @@ fn main() {
             }
 
             if let Some(option) = arg.get(LONG_OPTION_PREFIX_LEN..) {
-                if option == "pretty" {
+                if option == "check" {
+                    units.push(Unit::Check);
+                } else if option == "merge" {
+                    units.push(Unit::Merge);
+                } else if option == "pretty" {
                     if let Some(u) = units.last_mut() {
                         if let Unit::File(f) = u {
                             // The last unit is a file.
