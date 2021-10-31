@@ -5,6 +5,7 @@ extern crate serde_yaml;
 use serde::ser::Serialize;
 use serde_json::{Value as JsonValue};
 use serde_yaml::{Value as YamlValue};
+use toml::{Value as TomlValue};
 
 mod unit;
 
@@ -16,6 +17,7 @@ use crate::unit::{
 
 enum Value {
     Json(JsonValue),
+    Toml(TomlValue),
     Yaml(YamlValue),
 }
 
@@ -35,6 +37,19 @@ fn load_json(path: &str) -> JsonValue {
             };
 
     match serde_json::from_str(&content) {
+        Ok(v) => v,
+        Err(e) => panic!("{}", e),
+    }
+}
+
+fn load_toml(path: &str) -> TomlValue {
+    let content =
+            match std::fs::read_to_string(path) {
+                Ok(c) => c,
+                Err(e) => panic!("{}", e),
+            };
+
+    match toml::from_str(&content) {
         Ok(v) => v,
         Err(e) => panic!("{}", e),
     }
@@ -209,6 +224,7 @@ fn main() {
                 match input_unit {
                     Unit::File(f) => match f.format {
                         FileFormat::Json => Value::Json(load_json(&f.path)),
+                        FileFormat::Toml => Value::Toml(load_toml(&f.path)),
                         FileFormat::Yaml => Value::Yaml(load_yaml(&f.path)),
                         _ => {
                             eprintln!("wrong input");
@@ -236,6 +252,39 @@ fn main() {
                                         Err(e) => panic!("{}", e),
                                     },
                                 },
+                                FileFormat::Toml => match toml::to_string(&v) {
+                                    Ok(c) => c,
+                                    Err(e) => panic!("{}", e),
+                                },
+                                FileFormat::Yaml => match serde_yaml::to_string(&v) {
+                                    Ok(c) => c,
+                                    Err(e) => panic!("{}", e),
+                                },
+                                _ => panic!("json -> ?"),
+                            },
+                            _ => panic!("json -> ?"),
+                        };
+
+                println!("{}", output_content);
+            },
+            Value::Toml(v) => {
+                let output_content =
+                        match output_unit {
+                            Unit::File(f) => match f.format {
+                                FileFormat::Json => match f.pretty {
+                                    Some(true) => match serde_json::to_string_pretty(&v) {
+                                        Ok(c) => c,
+                                        Err(e) => panic!("{}", e),
+                                    },
+                                    _ => match serde_json::to_string(&v) {
+                                        Ok(c) => c,
+                                        Err(e) => panic!("{}", e),
+                                    },
+                                },
+                                FileFormat::Toml | FileFormat::Unknown => match toml::to_string(&v) {
+                                    Ok(c) => c,
+                                    Err(e) => panic!("{}", e),
+                                },
                                 FileFormat::Yaml => match serde_yaml::to_string(&v) {
                                     Ok(c) => c,
                                     Err(e) => panic!("{}", e),
@@ -260,6 +309,10 @@ fn main() {
                                         Ok(c) => c,
                                         Err(e) => panic!("{}", e),
                                     },
+                                },
+                                FileFormat::Toml => match toml::to_string(&v) {
+                                    Ok(c) => c,
+                                    Err(e) => panic!("{}", e),
                                 },
                                 FileFormat::Yaml | FileFormat::Unknown => match serde_yaml::to_string(&v) {
                                     Ok(c) => c,

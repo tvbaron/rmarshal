@@ -2,7 +2,7 @@
 
 ## Parameter Syntax
 
-    <syntax>    ::= <unit> | <unit> <parameters>
+    <syntax>    ::= <unit> | <unit> <syntax>
     <unit>      ::= <command> | <modifier> <format> <path>
     <command>   ::= "--check" | "--merge"
     <modifier>  ::= "" | "--pretty" <modifier>
