@@ -1,25 +1,18 @@
+extern crate indexmap;
+extern crate rlua;
 extern crate serde;
 extern crate serde_json;
 extern crate serde_yaml;
 
-use serde::ser::Serialize;
-use serde_json::{Value as JsonValue};
-use serde_yaml::{Value as YamlValue};
-use toml::{Value as TomlValue};
-
 mod unit;
+mod value;
+mod command;
 
 use crate::unit::{
     FileFormat,
     UnitFile,
     Unit,
 };
-
-enum Value {
-    Json(JsonValue),
-    Toml(TomlValue),
-    Yaml(YamlValue),
-}
 
 const STDIO_PLACEHOLDER: &str = "-";
 
@@ -28,54 +21,6 @@ const LONG_OPTION_PREFIX_LEN: usize = LONG_OPTION_PREFIX.len();
 
 const SHORT_OPTION_PREFIX: &str = "-";
 const SHORT_OPTION_PREFIX_LEN: usize = SHORT_OPTION_PREFIX.len();
-
-fn load_json(path: &str) -> JsonValue {
-    let content =
-            match std::fs::read_to_string(path) {
-                Ok(c) => c,
-                Err(e) => panic!("{}", e),
-            };
-
-    match serde_json::from_str(&content) {
-        Ok(v) => v,
-        Err(e) => panic!("{}", e),
-    }
-}
-
-fn load_toml(path: &str) -> TomlValue {
-    let content =
-            match std::fs::read_to_string(path) {
-                Ok(c) => c,
-                Err(e) => panic!("{}", e),
-            };
-
-    match toml::from_str(&content) {
-        Ok(v) => v,
-        Err(e) => panic!("{}", e),
-    }
-}
-
-fn load_yaml(path: &str) -> YamlValue {
-    let content =
-            match std::fs::read_to_string(path) {
-                Ok(c) => c,
-                Err(e) => panic!("{}", e),
-            };
-
-    match serde_yaml::from_str(&content) {
-        Ok(d) => d,
-        Err(e) => panic!("{}", e),
-    }
-}
-
-// fn is_last_unit_file(units: &Vec<Unit>, format_known: bool, complete: bool) -> bool {
-//     if let Some(u) = units.last() {
-//         if let Unit::File { format: f, path: p } = u {
-//             return (!format_known || f != &Format::Unknown) && (!complete && !p.is_empty());
-//         }
-//     }
-//     false
-// }
 
 /**
  * Exit codes:
@@ -211,21 +156,38 @@ fn main() {
         }
     }
 
-    // eprintln!("{:?}", units);
-
+    let mut any_command = false;
+    let mut any_lua = false;
     for (unit_idx, unit) in units.iter().enumerate() {
-        eprintln!("[{}] {:?}", unit_idx, unit);
+
+        eprintln!("[{}] {:?}", unit_idx, unit); // FIXME
+
+        if let Unit::File(f) = unit {
+            if f.format == FileFormat::Lua {
+                any_command = true;
+                any_lua = true;
+            }
+        }
     }
 
-    // (2ofx) Process.
-    if units.len() == 2 {
+    if !any_command {
+        if units.len() != 2 {
+            panic!("wrong paramters");
+        }
+
         let input_unit = &units[0];
-        let input_content =
+        let input_value =
                 match input_unit {
                     Unit::File(f) => match f.format {
-                        FileFormat::Json => Value::Json(load_json(&f.path)),
-                        FileFormat::Toml => Value::Toml(load_toml(&f.path)),
-                        FileFormat::Yaml => Value::Yaml(load_yaml(&f.path)),
+                        FileFormat::Json => {
+                            let content =
+                                    match std::fs::read_to_string(&f.path) {
+                                        Ok(c) => c,
+                                        Err(e) => panic!("{}", e),
+                                    };
+
+                            value::from_json_str(&content).unwrap()
+                        },
                         _ => {
                             eprintln!("wrong input");
                             std::process::exit(21);
@@ -236,99 +198,137 @@ fn main() {
                         std::process::exit(20);
                     },
                 };
+
         let output_unit = &units[1];
-        match input_content {
-            Value::Json(v) => {
-                let output_content =
-                        match output_unit {
-                            Unit::File(f) => match f.format {
-                                FileFormat::Json | FileFormat::Unknown => match f.pretty {
-                                    Some(true) => match serde_json::to_string_pretty(&v) {
-                                        Ok(c) => c,
-                                        Err(e) => panic!("{}", e),
-                                    },
-                                    _ => match serde_json::to_string(&v) {
-                                        Ok(c) => c,
-                                        Err(e) => panic!("{}", e),
-                                    },
-                                },
-                                FileFormat::Toml => match toml::to_string(&v) {
-                                    Ok(c) => c,
-                                    Err(e) => panic!("{}", e),
-                                },
-                                FileFormat::Yaml => match serde_yaml::to_string(&v) {
-                                    Ok(c) => c,
-                                    Err(e) => panic!("{}", e),
-                                },
-                                _ => panic!("json -> ?"),
+        let output_content =
+                match output_unit {
+                    Unit::File(f) => match f.format {
+                        FileFormat::Json => match f.pretty {
+                            Some(true) => match serde_json::to_string_pretty(&input_value) {
+                                Ok(c) => c,
+                                Err(e) => panic!("{}", e),
                             },
-                            _ => panic!("json -> ?"),
-                        };
-
-                println!("{}", output_content);
-            },
-            Value::Toml(v) => {
-                let output_content =
-                        match output_unit {
-                            Unit::File(f) => match f.format {
-                                FileFormat::Json => match f.pretty {
-                                    Some(true) => match serde_json::to_string_pretty(&v) {
-                                        Ok(c) => c,
-                                        Err(e) => panic!("{}", e),
-                                    },
-                                    _ => match serde_json::to_string(&v) {
-                                        Ok(c) => c,
-                                        Err(e) => panic!("{}", e),
-                                    },
-                                },
-                                FileFormat::Toml | FileFormat::Unknown => match toml::to_string(&v) {
-                                    Ok(c) => c,
-                                    Err(e) => panic!("{}", e),
-                                },
-                                FileFormat::Yaml => match serde_yaml::to_string(&v) {
-                                    Ok(c) => c,
-                                    Err(e) => panic!("{}", e),
-                                },
-                                _ => panic!("json -> ?"),
+                            _ => match serde_json::to_string(&input_value) {
+                                Ok(c) => c,
+                                Err(e) => panic!("{}", e),
                             },
-                            _ => panic!("json -> ?"),
-                        };
+                        },
+                        FileFormat::Toml => match toml::to_string(&input_value) {
+                            Ok(c) => c,
+                            Err(e) => panic!("{}", e),
+                        },
+                        FileFormat::Yaml => match serde_yaml::to_string(&input_value) {
+                            Ok(c) => c,
+                            Err(e) => panic!("{}", e),
+                        },
+                        _ => panic!("unknown output format"),
+                    },
+                    _ => panic!("wrong unit"),
+                };
 
-                println!("{}", output_content);
-            },
-            Value::Yaml(v) => {
-                let output_content =
-                        match output_unit {
-                            Unit::File(f) => match f.format {
-                                FileFormat::Json => match f.pretty {
-                                    Some(true) => match serde_json::to_string_pretty(&v) {
+        println!("{}", output_content);
+
+        std::process::exit(0);
+    }
+
+    if any_lua {
+        // Lua processing.
+        let mut lua_processed = false;
+        let mut values = Vec::new();
+        for (_unit_idx, unit) in units.iter().enumerate() {
+            if let Unit::File(f) = unit {
+                match f.format {
+                    FileFormat::Json => {
+                        if lua_processed {
+                            let v = &values[0];
+                            let output_content =
+                                    match f.pretty {
+                                        Some(true) => match serde_json::to_string_pretty(&v) {
+                                            Ok(c) => c,
+                                            Err(e) => panic!("{}", e),
+                                        },
+                                        _ => match serde_json::to_string(&v) {
+                                            Ok(c) => c,
+                                            Err(e) => panic!("{}", e),
+                                        },
+                                    };
+                            println!("{}", output_content);
+                        } else {
+                            let content =
+                                    match std::fs::read_to_string(&f.path) {
                                         Ok(c) => c,
                                         Err(e) => panic!("{}", e),
-                                    },
-                                    _ => match serde_json::to_string(&v) {
+                                    };
+
+                            values.push(value::from_json_str(&content).unwrap());
+                        }
+                    },
+                    FileFormat::Yaml => {
+                        if lua_processed {
+                            let v = &values[0];
+                            let output_content =
+                                    match serde_yaml::to_string(&v) {
                                         Ok(c) => c,
                                         Err(e) => panic!("{}", e),
-                                    },
-                                },
-                                FileFormat::Toml => match toml::to_string(&v) {
-                                    Ok(c) => c,
-                                    Err(e) => panic!("{}", e),
-                                },
-                                FileFormat::Yaml | FileFormat::Unknown => match serde_yaml::to_string(&v) {
-                                    Ok(c) => c,
-                                    Err(e) => panic!("{}", e),
-                                },
-                                _ => panic!("json -> ?"),
-                            },
-                            _ => panic!("json -> ?"),
-                        };
+                                    };
+                            println!("{}", output_content);
+                        } else {
+                            let content =
+                                    match std::fs::read_to_string(&f.path) {
+                                        Ok(c) => c,
+                                        Err(e) => panic!("{}", e),
+                                    };
 
-                println!("{}", output_content);
-            },
-            _ => {
-                eprintln!("wrong input");
-                std::process::exit(21);
-            },
-        };
+                            // values.push(value::from_yaml_str(&content).unwrap());
+                        }
+                    },
+                    FileFormat::Lua => {
+                        let lua_content =
+                                match std::fs::read_to_string(&f.path) {
+                                    Ok(c) => c,
+                                    Err(e) => panic!("{}", e),
+                                };
+                        let lua = rlua::Lua::new();
+                        let output_value =
+                                lua.context(|lua_ctx| {
+                                    match lua_ctx.load(command::LUA_PRELUDE).exec() {
+                                        Ok(_) => {},
+                                        Err(e) => panic!("{}", e),
+                                    }
+
+                                    let globals = lua_ctx.globals();
+
+                                    let ctx: rlua::Table =
+                                            match globals.get("ctx") {
+                                                Ok(v) => v,
+                                                Err(e) => panic!("{}", e),
+                                            };
+
+                                    match lua_ctx.load(&lua_content).exec() {
+                                        Ok(_) => {},
+                                        Err(e) => panic!("{}", e),
+                                    }
+
+                                    let output: rlua::Value =
+                                            match ctx.get("output") {
+                                                Ok(v) => v,
+                                                Err(e) => panic!("{}", e),
+                                            };
+
+                                    match output {
+                                        rlua::Value::Table(t) => Some(value::from_lua_table(t.clone())),
+                                        _ => None,
+                                    }
+                                });
+                        lua_processed = true;
+                        if let Some(v) = output_value {
+                            values.push(v);
+                        }
+                    },
+                    _ => {},
+                };
+            }
+        } // for
+        std::process::exit(0);
     }
 }
