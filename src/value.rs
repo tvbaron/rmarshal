@@ -2,6 +2,7 @@ use indexmap::IndexMap;
 use rlua::{Table as LuaTable, Value as LuaValue};
 use serde::{Serialize, Serializer, ser::SerializeMap};
 use serde_json::{Value as JsonValue};
+use serde_yaml::{Value as YamlValue};
 
 #[derive(Clone, Eq, PartialEq)]
 pub enum Value {
@@ -165,6 +166,7 @@ fn from_json_value(value: &JsonValue) -> Value {
             for v in a {
                 new_array.push(from_json_value(v));
             } // for
+
             Value::Array(new_array)
         },
         JsonValue::Object(o) => {
@@ -172,6 +174,7 @@ fn from_json_value(value: &JsonValue) -> Value {
             for (k, v) in o {
                 new_obj.insert(k.clone(), from_json_value(v));
             } // for
+
             Value::Object(new_obj)
         },
     }
@@ -186,4 +189,47 @@ pub fn from_json_str(content: &str) -> Result<Value, ()> {
             };
 
     Ok(from_json_value(&json_val))
+}
+
+// Converts a given YAML value into an internal Value.
+fn from_yaml_value(value: &YamlValue) -> Value {
+    match value {
+        YamlValue::Null => Value::Nil,
+        YamlValue::Bool(v) => Value::Boolean(*v),
+        YamlValue::Number(v) => Value::Integer(v.as_i64().unwrap()),
+        YamlValue::String(v) => Value::String(v.clone()),
+        YamlValue::Sequence(a) => {
+            let mut new_array = Vec::new();
+            for v in a {
+                new_array.push(from_yaml_value(v));
+            } // for
+
+            Value::Array(new_array)
+        },
+        YamlValue::Mapping(o) => {
+            let mut new_obj = IndexMap::new();
+            for (k, v) in o {
+                let name =
+                        match k {
+                            YamlValue::String(n) => n.clone(),
+                            _ => panic!("wrong object entry name"),
+                        };
+
+                new_obj.insert(name, from_yaml_value(v));
+            } // for
+
+            Value::Object(new_obj)
+        },
+    }
+}
+
+// Converts a given YAML string representation into an internal Value.
+pub fn from_yaml_str(content: &str) -> Result<Value, ()> {
+    let yaml_val =
+            match serde_yaml::from_str(content) {
+                Ok(v) => v,
+                Err(_) => return Err(()),
+            };
+
+    Ok(from_yaml_value(&yaml_val))
 }

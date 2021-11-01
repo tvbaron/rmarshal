@@ -188,6 +188,15 @@ fn main() {
 
                             value::from_json_str(&content).unwrap()
                         },
+                        FileFormat::Yaml => {
+                            let content =
+                                    match std::fs::read_to_string(&f.path) {
+                                        Ok(c) => c,
+                                        Err(e) => panic!("{}", e),
+                                    };
+
+                            value::from_yaml_str(&content).unwrap()
+                        },
                         _ => {
                             eprintln!("wrong input");
                             std::process::exit(21);
@@ -279,7 +288,7 @@ fn main() {
                                         Err(e) => panic!("{}", e),
                                     };
 
-                            // values.push(value::from_yaml_str(&content).unwrap());
+                            values.push(value::from_yaml_str(&content).unwrap());
                         }
                     },
                     FileFormat::Lua => {
