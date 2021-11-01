@@ -2,18 +2,14 @@ const JSON_PATH_SUFFIX: &str = ".json";
 const TOML_PATH_SUFFIX: &str = ".toml";
 const YAML_PATH_SUFFIX: &str = ".yaml";
 
-const LUA_PATH_SUFFIX: &str = ".lua";
+pub const LUA_PATH_SUFFIX: &str = ".lua";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum FileFormat {
     Unknown,
-
     Json,
     Toml,
     Yaml,
-
-    Lua,
-    Template,
 }
 
 impl Default for FileFormat {
@@ -31,8 +27,6 @@ impl FileFormat {
             FileFormat::Toml
         } else if lc_path.ends_with(YAML_PATH_SUFFIX) {
             FileFormat::Yaml
-        } else if lc_path.ends_with(LUA_PATH_SUFFIX) {
-            FileFormat::Lua
         } else {
             FileFormat::Unknown
         }
@@ -43,8 +37,6 @@ impl FileFormat {
             "json" => FileFormat::Json,
             "toml" => FileFormat::Toml,
             "yaml" => FileFormat::Yaml,
-            "lua" => FileFormat::Lua,
-            "template" => FileFormat::Template,
             _ => FileFormat::Unknown,
         }
     }
@@ -87,10 +79,25 @@ impl UnitFile {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct UnitCommand {
+    pub path: Option<String>,
+}
+
+impl UnitCommand {
+    pub fn for_path(path: &str) -> Self {
+        UnitCommand {
+            path: Some(path.to_owned()),
+        }
+    }
+}
+
 // Parameter Unit.
 #[derive(Debug)]
 pub enum Unit {
     File(UnitFile),
     Check,
     Merge,
+    Lua(UnitCommand),
+    Template(UnitCommand),
 }

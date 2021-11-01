@@ -9,8 +9,10 @@ mod value;
 mod command;
 
 use crate::unit::{
+    LUA_PATH_SUFFIX,
     FileFormat,
     UnitFile,
+    UnitCommand,
     Unit,
 };
 
@@ -32,26 +34,20 @@ const SHORT_OPTION_PREFIX_LEN: usize = SHORT_OPTION_PREFIX.len();
  */
 fn main() {
     // (1ofx) Parse arguments.
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    // let mut input_format: Option<Format> = None;
-    // let input_path = args[1].to_owned();
     let mut units: Vec<Unit> = Vec::new();
-
+    let args: Vec<String> = std::env::args().skip(1).collect();
     for arg in args {
         if arg == STDIO_PLACEHOLDER {
-            if let Some(u) = units.last_mut() {
-                if let Unit::File(f) = u {
+            if let Some(last_unit) = units.last_mut() {
+                if let Unit::File(f) = last_unit {
                     if f.path.is_empty() {
                         f.path = STDIO_PLACEHOLDER.to_owned();
-                    } else {
-                        units.push(Unit::File(UnitFile::for_path(STDIO_PLACEHOLDER)));
+                        continue;
                     }
-                } else {
-                    units.push(Unit::File(UnitFile::for_path(STDIO_PLACEHOLDER)));
                 }
-            } else {
-                units.push(Unit::File(UnitFile::for_path(STDIO_PLACEHOLDER)));
             }
+
+            units.push(Unit::File(UnitFile::for_path(STDIO_PLACEHOLDER)));
         } else if arg.starts_with(LONG_OPTION_PREFIX) {
             if arg.len() <= LONG_OPTION_PREFIX_LEN {
                 eprintln!("wrong parameter");
@@ -63,61 +59,47 @@ fn main() {
                     units.push(Unit::Check);
                 } else if option == "merge" {
                     units.push(Unit::Merge);
+                } else if option == "lua" {
+                    units.push(Unit::Lua(UnitCommand::default()));
+                } else if option == "template" {
+                    units.push(Unit::Template(UnitCommand::default()));
                 } else if option == "pretty" {
-                    if let Some(u) = units.last_mut() {
-                        if let Unit::File(f) = u {
+                    if let Some(last_unit) = units.last_mut() {
+                        if let Unit::File(f) = last_unit {
                             // The last unit is a file.
-                            if !f.path.is_empty() {
-                                // The file is complete.
-                                let mut file = UnitFile::default();
-                                file.pretty = Some(true);
-                                units.push(Unit::File(file));
-                            } else {
+                            if f.path.is_empty() {
                                 f.pretty = Some(true);
+                                continue;
                             }
-                        } else {
-                            // The last unit is not a file.
-                            let mut file = UnitFile::default();
-                            file.pretty = Some(true);
-                            units.push(Unit::File(file));
                         }
-                    } else {
-                        // First unit.
-                        let mut file = UnitFile::default();
-                        file.pretty = Some(true);
-                        units.push(Unit::File(file));
                     }
+
+                    let mut file = UnitFile::default();
+                    file.pretty = Some(true);
+                    units.push(Unit::File(file));
                 } else {
                     // Try a file format.
                     let format = FileFormat::for_str(option);
                     if format.is_known() {
-                        if let Some(u) = units.last_mut() {
-                            if let Unit::File(f) = u {
+                        if let Some(last_unit) = units.last_mut() {
+                            if let Unit::File(f) = last_unit {
                                 // The last unit is a file.
-                                if !f.path.is_empty() {
-                                    // The file is complete.
-                                    units.push(Unit::File(UnitFile::for_format(format)));
-                                } else if f.format != FileFormat::Unknown {
-                                    eprintln!("wrong parameter");
-                                    std::process::exit(10);
-                                } else {
+                                if f.path.is_empty() {
                                     f.format = format;
+                                    continue;
                                 }
-                            } else {
-                                // The last unit is not a file.
-                                units.push(Unit::File(UnitFile::for_format(format)));
                             }
-                        } else {
-                            // First unit.
-                            units.push(Unit::File(UnitFile::for_format(format)));
                         }
+
+                        units.push(Unit::File(UnitFile::for_format(format)));
                     } else {
                         eprintln!("wrong parameter");
                         std::process::exit(10);
                     }
                 }
             } else {
-                panic!("internal error");
+                eprintln!("wrong parameter");
+                std::process::exit(10);
             }
         } else if arg.starts_with(SHORT_OPTION_PREFIX) {
             if arg.len() != (SHORT_OPTION_PREFIX_LEN + 1) {
@@ -125,50 +107,94 @@ fn main() {
                 std::process::exit(10);
             }
 
-            // if let Some(option) = arg.get(SHORT_OPTION_PREFIX_LEN..) {
-
-            // }
-            eprintln!("not implemented yet");
+            if let Some(_option) = arg.get(SHORT_OPTION_PREFIX_LEN..) {
+                eprintln!("not implemented yet");
+            } else {
+                eprintln!("wrong parameter");
+                std::process::exit(10);
+            }
         } else {
             // The argment is a path.
-            if let Some(u) = units.last_mut() {
-                if let Unit::File(f) = u {
-                    // The last unit is a file.
-                    if !f.path.is_empty() {
-                        // The file is complete.
-                        units.push(Unit::File(UnitFile::for_path(&arg)));
-                    } else {
-                        f.path = arg;
-                    }
-                } else {
-                    units.push(Unit::File(UnitFile::for_path(&arg)));
-                }
+            if let Some(last_unit) = units.last_mut() {
+                match last_unit {
+                    Unit::File(f) => {
+                        // The last unit is a file.
+                        if f.path.is_empty() {
+                            // The file is not complete.
+                            f.path = arg;
+                            continue;
+                        }
+                    },
+                    Unit::Lua(c) | Unit::Template(c) => {
+                        // The last unit is a lua/template command.
+                        if let None = c.path {
+                            c.path = Some(arg);
+                            continue;
+                        }
+                    },
+                    _ => {},
+                } // match
+            }
+
+            let lc_path = arg.to_lowercase();
+            if lc_path.ends_with(LUA_PATH_SUFFIX) {
+                units.push(Unit::Lua(UnitCommand::for_path(&arg)));
             } else {
                 units.push(Unit::File(UnitFile::for_path(&arg)));
             }
         }
     } // for
-    if let Some(u) = units.last_mut() {
-        if let Unit::File(f) = u {
-            if f.path.is_empty() {
-                f.path = STDIO_PLACEHOLDER.to_owned();
-            }
-        }
-    }
+    // if let Some(u) = units.last_mut() {
+    //     if let Unit::File(f) = u {
+    //         if f.path.is_empty() {
+    //             f.path = STDIO_PLACEHOLDER.to_owned();
+    //         }
+    //     }
+    // }
 
+    // (2ofx) Check and sanitize units.
+    let mut input_file_format: Option<FileFormat> = None;
+    let mut input_cnt = 0;
+    let mut output_cnt = 0;
     let mut any_command = false;
     let mut any_lua = false;
-    for (unit_idx, unit) in units.iter().enumerate() {
+    for (unit_idx, unit) in units.iter_mut().enumerate() {
 
         eprintln!("[{}] {:?}", unit_idx, unit); // FIXME
 
-        if let Unit::File(f) = unit {
-            if f.format == FileFormat::Lua {
+        match unit {
+            Unit::File(f) => {
+                if any_command {
+                    if output_cnt > 0 {
+                        eprintln!("wrong parameter");
+                        std::process::exit(10);
+                    }
+
+                    output_cnt += 1;
+                    if f.path.is_empty() {
+                        f.path = STDIO_PLACEHOLDER.to_owned();
+                    }
+                    if f.format == FileFormat::Unknown {
+
+                    }
+                } else {
+                    input_cnt += 1;
+                }
+            },
+            Unit::Lua(c) => {
                 any_command = true;
                 any_lua = true;
-            }
+            },
+            _ => {},
         }
+    } // for
+    if !any_command {
+
     }
+
+
+
+
 
     if !any_command {
         if units.len() != 2 {
@@ -244,9 +270,9 @@ fn main() {
         // Lua processing.
         let mut lua_processed = false;
         let mut values = Vec::new();
-        for (_unit_idx, unit) in units.iter().enumerate() {
-            if let Unit::File(f) = unit {
-                match f.format {
+        for (_, unit) in units.iter().enumerate() {
+            match unit {
+                Unit::File(f) => match f.format {
                     FileFormat::Json => {
                         if lua_processed {
                             let v = &values[0];
@@ -291,52 +317,57 @@ fn main() {
                             values.push(value::from_yaml_str(&content).unwrap());
                         }
                     },
-                    FileFormat::Lua => {
-                        let lua_content =
-                                match std::fs::read_to_string(&f.path) {
-                                    Ok(c) => c,
-                                    Err(e) => panic!("{}", e),
-                                };
-                        let lua = rlua::Lua::new();
-                        let output_value =
-                                lua.context(|lua_ctx| {
-                                    match lua_ctx.load(command::LUA_PRELUDE).exec() {
-                                        Ok(_) => {},
-                                        Err(e) => panic!("{}", e),
-                                    }
-
-                                    let globals = lua_ctx.globals();
-
-                                    let ctx: rlua::Table =
-                                            match globals.get("ctx") {
-                                                Ok(v) => v,
-                                                Err(e) => panic!("{}", e),
-                                            };
-
-                                    match lua_ctx.load(&lua_content).exec() {
-                                        Ok(_) => {},
-                                        Err(e) => panic!("{}", e),
-                                    }
-
-                                    let output: rlua::Value =
-                                            match ctx.get("output") {
-                                                Ok(v) => v,
-                                                Err(e) => panic!("{}", e),
-                                            };
-
-                                    match output {
-                                        rlua::Value::Table(t) => Some(value::from_lua_table(t.clone())),
-                                        _ => None,
-                                    }
-                                });
-                        lua_processed = true;
-                        if let Some(v) = output_value {
-                            values.push(v);
-                        }
+                    _ => {
+                        panic!("not implemented yet");
                     },
-                    _ => {},
-                };
-            }
+                },
+                Unit::Lua(c) => {
+                    let lua_content =
+                            match std::fs::read_to_string(c.path.as_ref().unwrap()) {
+                                Ok(c) => c,
+                                Err(e) => panic!("{}", e),
+                            };
+                    let lua = rlua::Lua::new();
+                    let output_value =
+                            lua.context(|lua_ctx| {
+                                match lua_ctx.load(command::LUA_PRELUDE).exec() {
+                                    Ok(_) => {},
+                                    Err(e) => panic!("{}", e),
+                                }
+
+                                let globals = lua_ctx.globals();
+
+                                let ctx: rlua::Table =
+                                        match globals.get("ctx") {
+                                            Ok(v) => v,
+                                            Err(e) => panic!("{}", e),
+                                        };
+
+                                match lua_ctx.load(&lua_content).exec() {
+                                    Ok(_) => {},
+                                    Err(e) => panic!("{}", e),
+                                }
+
+                                let output: rlua::Value =
+                                        match ctx.get("output") {
+                                            Ok(v) => v,
+                                            Err(e) => panic!("{}", e),
+                                        };
+
+                                match output {
+                                    rlua::Value::Table(t) => Some(value::from_lua_table(t.clone())),
+                                    _ => None,
+                                }
+                            });
+                    lua_processed = true;
+                    if let Some(v) = output_value {
+                        values.push(v);
+                    }
+                },
+                _ => {
+                    panic!("not implemented yet");
+                },
+            } // match
         } // for
         std::process::exit(0);
     }
