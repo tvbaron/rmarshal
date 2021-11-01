@@ -1,5 +1,9 @@
 use indexmap::IndexMap;
-use rlua::{Table as LuaTable, Value as LuaValue};
+use rlua::{
+    Context as LuaContext,
+    Table as LuaTable,
+    Value as LuaValue,
+};
 use serde::{Serialize, Serializer, ser::SerializeMap};
 use serde_json::{Value as JsonValue};
 use serde_yaml::{Value as YamlValue};
@@ -151,6 +155,60 @@ pub fn from_lua_table(table: LuaTable) -> Value {
         } // for
 
         Value::Object(o)
+    }
+}
+
+pub fn to_lua_string(value: &Value) -> String {
+    match value {
+        Value::Nil => "nil".to_owned(),
+        Value::Boolean(b) => {
+            if *b {
+                "true".to_owned()
+            } else {
+                "false".to_owned()
+            }
+        },
+        Value::Integer(i) => {
+            format!("{}", i)
+        },
+        Value::String(s) => {
+            let mut sb = String::new();
+            sb.push('"');
+            sb.push_str(s);
+            sb.push('"');
+
+            sb
+        },
+        Value::Array(a) => {
+            let mut sb = String::new();
+            sb.push_str("{");
+            for (_, elem) in a.iter().enumerate() {
+                sb.push_str(&to_lua_string(elem));
+                sb.push(',');
+            } // for
+            sb.push_str("}");
+
+            sb
+        },
+        Value::Object(o) => {
+            let mut sb = String::new();
+            sb.push_str("Object:new({");
+            for (k, v) in o {
+                sb.push('"');
+                sb.push_str(k);
+                sb.push('"');
+                sb.push(',');
+                sb.push_str(&to_lua_string(v));
+                sb.push(',');
+
+            } // for
+            sb.push_str("})");
+
+            sb
+        },
+        _ => {
+            panic!("foobar");
+        },
     }
 }
 

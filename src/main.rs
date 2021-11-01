@@ -328,12 +328,14 @@ fn main() {
                                 Err(e) => panic!("{}", e),
                             };
                     let lua = rlua::Lua::new();
+                    let input_values = values.clone();
+                    values.clear();
                     let output_value =
                             lua.context(|lua_ctx| {
                                 match lua_ctx.load(command::LUA_PRELUDE).exec() {
                                     Ok(_) => {},
                                     Err(e) => panic!("{}", e),
-                                }
+                                } // match
 
                                 let globals = lua_ctx.globals();
 
@@ -343,10 +345,19 @@ fn main() {
                                             Err(e) => panic!("{}", e),
                                         };
 
+                                for (_, value) in input_values.iter().enumerate() {
+                                    let mut sb = String::new();
+                                    sb.push_str("table.insert(ctx.inputs,");
+                                    sb.push_str(&value::to_lua_string(&value));
+                                    sb.push_str(")");
+                                    println!("{}", sb);
+                                    lua_ctx.load(&sb).exec().unwrap();
+                                } // for
+
                                 match lua_ctx.load(&lua_content).exec() {
                                     Ok(_) => {},
                                     Err(e) => panic!("{}", e),
-                                }
+                                } // match
 
                                 let output: rlua::Value =
                                         match ctx.get("output") {

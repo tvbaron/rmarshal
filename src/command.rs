@@ -76,7 +76,11 @@ Context = {
     _classname = "Context",
 }
 
-function Context:new(ctx)
+function Context:new()
+    local ctx = {
+        inputs = {},
+        output = nil,
+    }
     setmetatable(ctx, self)
     self.__index = self
     return ctx
@@ -90,8 +94,5 @@ function Context:set_output(output)
     self.output = output
 end
 
-ctx = Context:new({
-    inputs = {},
-    output = nil,
-})
+ctx = Context:new()
 "#;
