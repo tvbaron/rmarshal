@@ -181,6 +181,9 @@ fn main() {
                     input_cnt += 1;
                 }
             },
+            Unit::Merge => {
+                any_command = true;
+            },
             Unit::Lua(c) => {
                 any_command = true;
                 any_lua = true;
@@ -266,7 +269,7 @@ fn main() {
         std::process::exit(0);
     }
 
-    if any_lua {
+    if any_command {
         // Lua processing.
         let mut lua_processed = false;
         let mut values = Vec::new();
@@ -320,6 +323,52 @@ fn main() {
                     _ => {
                         panic!("not implemented yet");
                     },
+                },
+                Unit::Merge => {
+                    let lua = rlua::Lua::new();
+                    let input_values = values.clone();
+                    values.clear();
+                    let output_value =
+                            lua.context(|lua_ctx| {
+                                match lua_ctx.load(command::LUA_PRELUDE).exec() {
+                                    Ok(_) => {},
+                                    Err(e) => panic!("{}", e),
+                                } // match
+
+                                let globals = lua_ctx.globals();
+
+                                let ctx: rlua::Table =
+                                        match globals.get("ctx") {
+                                            Ok(v) => v,
+                                            Err(e) => panic!("{}", e),
+                                        };
+
+                                for (_, value) in input_values.iter().enumerate() {
+                                    let mut sb = String::new();
+                                    sb.push_str("table.insert(ctx.inputs,");
+                                    sb.push_str(&value::to_lua_string(&value));
+                                    sb.push_str(")");
+                                    println!("{}", sb);
+                                    lua_ctx.load(&sb).exec().unwrap();
+                                } // for
+
+                                lua_ctx.load("ctx:set_output(ctx:merge_inputs())").exec().unwrap();
+
+                                let output: rlua::Value =
+                                        match ctx.get("output") {
+                                            Ok(v) => v,
+                                            Err(e) => panic!("{}", e),
+                                        };
+
+                                match output {
+                                    rlua::Value::Table(t) => Some(value::from_lua_table(t.clone())),
+                                    _ => None,
+                                }
+                            });
+                    lua_processed = true;
+                    if let Some(v) = output_value {
+                        values.push(v);
+                    }
                 },
                 Unit::Lua(c) => {
                     let lua_content =

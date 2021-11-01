@@ -158,6 +158,7 @@ pub fn from_lua_table(table: LuaTable) -> Value {
     }
 }
 
+// Converts a given internal value into lua.
 pub fn to_lua_string(value: &Value) -> String {
     match value {
         Value::Nil => "nil".to_owned(),
@@ -205,9 +206,6 @@ pub fn to_lua_string(value: &Value) -> String {
             sb.push_str("})");
 
             sb
-        },
-        _ => {
-            panic!("foobar");
         },
     }
 }

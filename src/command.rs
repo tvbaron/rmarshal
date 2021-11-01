@@ -36,6 +36,14 @@ function Object:new(seq)
     return obj
 end
 
+function Object:keys()
+    local ret = {}
+    for _, entry in ipairs(self) do
+        table.insert(ret, entry.name)
+    end
+    return ret
+end
+
 function Object:has(field)
     for _, entry in ipairs(self) do
         if entry.name == field then
@@ -72,6 +80,12 @@ function Object:set(field, value)
     return nil
 end
 
+function Object:merge(other)
+    for _, entry in ipairs(other) do
+        self:set(entry.name, entry.value)
+    end
+end
+
 Context = {
     _classname = "Context",
 }
@@ -88,6 +102,14 @@ end
 
 function Context:get_inputs()
     return self.inputs
+end
+
+function Context:merge_inputs()
+    local ret = Object:new()
+    for _, input in ipairs(self.inputs) do
+        ret:merge(input)
+    end
+    return ret
 end
 
 function Context:set_output(output)
