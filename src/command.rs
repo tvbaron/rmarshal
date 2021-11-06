@@ -12,91 +12,161 @@ function is_table_array(tab)
     return true
 end
 
-Object = {
-    _classname = "Object",
-}
+function typeof(v)
+    local t = type(v)
+    if t == 'table' then
+        if v._classname == 'NullClass' then
+            return 'null'
+        elseif v._classname == 'Object' then
+            return 'object'
+        elseif v._classname == 'Array' or is_table_array(v) then
+            return 'array'
+        end
 
-function Object:new(seq)
-    local obj = {}
-    if seq ~= nil then
-        local field = nil
-        for idx, val in ipairs(seq) do
-            if (idx % 2) == 0 then
-                table.insert(obj, {
-                    name = field,
-                    value = val,
-                })
-            else
-                field = val
+        return 'table'
+    end
+
+    return t
+end
+
+-- Represents the NULL value (different than nil).
+NullClass = {
+    _classname = 'NullClass',
+}
+NullClass.__index = NullClass
+NULL = {}
+setmetatable(NULL, NullClass)
+
+-- Represents an Object with key insertion order iterator.
+Object = {
+    _classname = 'Object',
+}
+Object.__index = Object
+
+-- Constructs a new Object.
+-- @return [Object]
+function Object:new(init)
+    local obj = {
+        keys = {},
+        values = {},
+    }
+    if (type(init) == 'table') then
+        if (is_table_array(init)) then
+            for _, entries in ipairs(init) do
+                for k, v in pairs(entries) do
+                    table.insert(obj.keys, k)
+                    obj.values[k] = v
+                end
+            end
+        else
+            for k, v in pairs(init) do
+                table.insert(obj.keys, k)
+                obj.values[k] = v
             end
         end
     end
     setmetatable(obj, self)
-    self.__index = self
     return obj
 end
 
-function Object:keys()
-    local ret = {}
-    for _, entry in ipairs(self) do
-        table.insert(ret, entry.name)
-    end
-    return ret
-end
-
-function Object:has(field)
-    for _, entry in ipairs(self) do
-        if entry.name == field then
-            return true
+-- Deletes a given key and its value.
+-- @param key [string]
+-- @return [any] The previous value if any, nil otherwise.
+function Object:delete(key)
+    for i, k in ipairs(self.keys) do
+        if k == key then
+            table.remove(self.keys, i)
+            break
         end
     end
 
-    return false
+    local prev_val = self.values[key]
+    self.values[key] = nil
+
+    return prev_val
 end
 
-function Object:get(field)
-    for _, entry in ipairs(self) do
-        if entry.name == field then
-            return entry.value
-        end
+-- Returns the value of a given key.
+-- @param key [string]
+-- @return [any]
+function Object:get(key)
+    return self.values[key]
+end
+
+-- Tests whether a given key exists.
+-- @param key [string]
+-- @return [boolean]
+function Object:has(key)
+    return self.values[key] ~= nil
+end
+
+function _object_iterator(obj, idx)
+    local next_idx = idx + 1
+    local key = obj.keys[next_idx]
+    if key == nil then
+        return
     end
 
-    return nil
+    local val = obj.values[key]
+    local entry = {
+        key = key,
+        value = val,
+    }
+
+    return next_idx, entry
 end
 
-function Object:set(field, value)
-    for _, entry in ipairs(self) do
-        if entry.name == field then
-            local old_val = entry.value
-            entry.value = value
-            return old_val
-        end
+function Object:iterator()
+    return _object_iterator, self, 0
+end
+
+-- Sets a new value of a given key.
+-- If the value is nil then the previous key-value pair is deleted.
+-- @param key [string]
+-- @param value [any]
+-- @return [any] The previous value if any, nil otherwise.
+function Object:set(key, value)
+    if (type(key) ~= 'string' or key:len() <= 0) then
+        error('wrong key format')
     end
 
-    table.insert(self, {
-        name = field,
-        value = value,
-    })
-    return nil
+    if value == nil then
+        return self:delete(key)
+    end
+
+    local prev_val = self.values[key]
+    if prev_val == nil then
+        -- The given key does not exist yet.
+        table.insert(self.keys, key)
+    end
+
+    self.values[key] = value
+
+    return prev_val
 end
 
+-- Merges the Object represented by this one with another Object.
+-- @param other [Object]
+-- @return [Object] The Object represented by this one (self).
 function Object:merge(other)
-    for _, entry in ipairs(other) do
-        self:set(entry.name, entry.value)
+    for _, e in other:iterator() do
+        self:set(e.key, e.value)
     end
+
+    return self
 end
 
 Context = {
     _classname = "Context",
 }
+Context.__index = Context
 
-function Context:new()
+function Context:new(ctx)
     local ctx = {
         inputs = {},
         output = nil,
     }
     setmetatable(ctx, self)
-    self.__index = self
     return ctx
 end
 

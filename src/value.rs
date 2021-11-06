@@ -1,6 +1,6 @@
 use indexmap::IndexMap;
 use rlua::{
-    Context as LuaContext,
+    String as LuaString,
     Table as LuaTable,
     Value as LuaValue,
 };
@@ -61,107 +61,110 @@ fn is_lua_table_array(table: LuaTable) -> bool {
 
 // Converts a given Lua table into an internal Value.
 pub fn from_lua_table(table: LuaTable) -> Value {
-    let is_object =
+    let classname =
             match table.get("_classname") {
-                Ok(LuaValue::String(s)) => s.to_str().unwrap() == "Object",
-                _ => false,
+                Ok(LuaValue::String(s)) => Some(s.to_str().unwrap().to_owned()),
+                _ => None,
             };
 
-    if is_object {
-        let mut o = IndexMap::new();
-        for pair in table.pairs::<LuaValue, LuaValue>() {
-            let (entry_idx, entry) = pair.unwrap();
-
-            // Skip not array entry.
-            match entry_idx {
-                LuaValue::Integer(_) => {},
-                _ => continue,
-            } // match
-
-            let entry =
-                    match entry {
-                        LuaValue::Table(t) => t,
-                        _ => panic!("wrong object entry"),
+    if let Some(cname) = classname {
+        if cname == "NullClass" {
+            Value::Nil
+        } else if cname == "Object" {
+            let mut o = IndexMap::new();
+            let keys: LuaTable =
+                    match table.get("keys") {
+                        Ok(k) => k,
+                        Err(_) => panic!("wrong object (keys)"),
                     };
-
-            let name =
-                    match entry.get("name") {
-                        Ok(LuaValue::String(s)) => s.to_str().unwrap().to_owned(),
-                        _ => panic!("wrong object entry name"),
+            let values: LuaTable =
+                    match table.get("values") {
+                        Ok(k) => k,
+                        Err(_) => panic!("wrong object (values)"),
                     };
+            for key in keys.sequence_values::<LuaString>() {
+                let key =
+                        match key {
+                            Ok(k) => k,
+                            Err(_) => panic!("wrong object (key)"),
+                        };
+                let value =
+                        match values.get(key.clone()) {
+                            Ok(v) => match v {
+                                LuaValue::Boolean(v) => Value::Boolean(v),
+                                LuaValue::Integer(v) => Value::Integer(v),
+                                LuaValue::String(s) => Value::String(s.to_str().unwrap().to_owned()),
+                                LuaValue::Table(ref t) => from_lua_table(t.clone()),
+                                _ => panic!("wrong object value"),
+                            },
+                            Err(_) => panic!("wrong object (value"),
+                        };
+                o.insert(key.to_str().unwrap().to_owned(), value);
+            } // for
 
-            let value =
-                    match entry.get("value") {
-                        Ok(v) => match v {
-                            LuaValue::Nil => Value::Nil,
-                            LuaValue::Integer(v) => Value::Integer(v),
-                            LuaValue::String(s) => Value::String(s.to_str().unwrap().to_owned()),
-                            LuaValue::Table(ref t) => from_lua_table(t.clone()),
-                            _ => panic!("wrong field value"),
-                        },
-                        Err(_) => panic!("wrong object entry value"),
-                    };
-
-            o.insert(name, value);
-        } // for
-
-        Value::Object(o)
-    } else if is_lua_table_array(table.clone()) {
-        let mut a = Vec::new();
-        for pair in table.pairs::<LuaValue, LuaValue>() {
-            let (_, elem) = pair.unwrap();
-            match elem {
-                LuaValue::Nil => {
-                    a.push(Value::Nil);
-                },
-                LuaValue::Integer(v) => {
-                    a.push(Value::Integer(v));
-                },
-                LuaValue::String(s) => {
-                    a.push(Value::String(s.to_str().unwrap().to_owned()));
-                },
-                LuaValue::Table(ref t) => {
-                    a.push(from_lua_table(t.clone()));
-                },
-                _ => panic!("wrong field value"),
-            } // match
-        } // for
-
-        Value::Array(a)
+            Value::Object(o)
+        } else {
+            panic!("wrong classname");
+        }
     } else {
-        let mut o = IndexMap::new();
-        for pair in table.pairs::<LuaValue, LuaValue>() {
-            let (k, v) = pair.unwrap();
-            let field_name =
-                    match k {
-                        LuaValue::String(s) => s.to_str().unwrap().to_owned(),
-                        _ => panic!("wrong field type"),
-                    };
-            match v {
-                LuaValue::Nil => {
-                    o.insert(field_name, Value::Nil);
-                },
-                LuaValue::Integer(v) => {
-                    o.insert(field_name, Value::Integer(v));
-                },
-                LuaValue::String(s) => {
-                    o.insert(field_name, Value::String(s.to_str().unwrap().to_owned()));
-                },
-                LuaValue::Table(ref t) => {
-                    o.insert(field_name, from_lua_table(t.clone()));
-                },
-                _ => panic!("wrong field value"),
-            }
-        } // for
+        // No classname.
+        if is_lua_table_array(table.clone()) {
+            let mut a = Vec::new();
+            for pair in table.pairs::<LuaValue, LuaValue>() {
+                let (_, elem) = pair.unwrap();
+                match elem {
+                    LuaValue::Nil => {
+                        a.push(Value::Nil);
+                    },
+                    LuaValue::Integer(v) => {
+                        a.push(Value::Integer(v));
+                    },
+                    LuaValue::String(s) => {
+                        a.push(Value::String(s.to_str().unwrap().to_owned()));
+                    },
+                    LuaValue::Table(ref t) => {
+                        a.push(from_lua_table(t.clone()));
+                    },
+                    _ => panic!("wrong field value"),
+                } // match
+            } // for
 
-        Value::Object(o)
+            Value::Array(a)
+        } else {
+            let mut o = IndexMap::new();
+            for pair in table.pairs::<LuaValue, LuaValue>() {
+                let (k, v) = pair.unwrap();
+                let field_name =
+                        match k {
+                            LuaValue::String(s) => s.to_str().unwrap().to_owned(),
+                            _ => panic!("wrong field type"),
+                        };
+                match v {
+                    LuaValue::Nil => {
+                        o.insert(field_name, Value::Nil);
+                    },
+                    LuaValue::Integer(v) => {
+                        o.insert(field_name, Value::Integer(v));
+                    },
+                    LuaValue::String(s) => {
+                        o.insert(field_name, Value::String(s.to_str().unwrap().to_owned()));
+                    },
+                    LuaValue::Table(ref t) => {
+                        o.insert(field_name, from_lua_table(t.clone()));
+                    },
+                    _ => panic!("wrong field value"),
+                }
+            } // for
+
+            Value::Object(o)
+        }
     }
 }
 
 // Converts a given internal value into lua.
 pub fn to_lua_string(value: &Value) -> String {
     match value {
-        Value::Nil => "nil".to_owned(),
+        Value::Nil => "NULL".to_owned(),
         Value::Boolean(b) => {
             if *b {
                 "true".to_owned()
@@ -195,13 +198,12 @@ pub fn to_lua_string(value: &Value) -> String {
             let mut sb = String::new();
             sb.push_str("Object:new({");
             for (k, v) in o {
-                sb.push('"');
+                sb.push('{');
                 sb.push_str(k);
-                sb.push('"');
-                sb.push(',');
+                sb.push('=');
                 sb.push_str(&to_lua_string(v));
+                sb.push('}');
                 sb.push(',');
-
             } // for
             sb.push_str("})");
 
