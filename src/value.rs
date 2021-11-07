@@ -70,6 +70,31 @@ pub fn from_lua_table(table: LuaTable) -> Value {
     if let Some(cname) = classname {
         if cname == "NullClass" {
             Value::Nil
+        } else if cname == "Array" {
+            let mut a = Vec::new();
+            for pair in table.pairs::<LuaValue, LuaValue>() {
+                let (_, elem) = pair.unwrap();
+                match elem {
+                    LuaValue::Nil => {
+                        a.push(Value::Nil);
+                    },
+                    LuaValue::Boolean(v) => {
+                        a.push(Value::Boolean(v));
+                    },
+                    LuaValue::Integer(v) => {
+                        a.push(Value::Integer(v));
+                    },
+                    LuaValue::String(s) => {
+                        a.push(Value::String(s.to_str().unwrap().to_owned()));
+                    },
+                    LuaValue::Table(ref t) => {
+                        a.push(from_lua_table(t.clone()));
+                    },
+                    _ => panic!("wrong array element"),
+                } // match
+            } // for
+
+            Value::Array(a)
         } else if cname == "Object" {
             let mut o = IndexMap::new();
             let keys: LuaTable =
@@ -116,6 +141,9 @@ pub fn from_lua_table(table: LuaTable) -> Value {
                     LuaValue::Nil => {
                         a.push(Value::Nil);
                     },
+                    LuaValue::Boolean(v) => {
+                        a.push(Value::Boolean(v));
+                    },
                     LuaValue::Integer(v) => {
                         a.push(Value::Integer(v));
                     },
@@ -125,7 +153,7 @@ pub fn from_lua_table(table: LuaTable) -> Value {
                     LuaValue::Table(ref t) => {
                         a.push(from_lua_table(t.clone()));
                     },
-                    _ => panic!("wrong field value"),
+                    _ => panic!("wrong array element"),
                 } // match
             } // for
 
@@ -137,11 +165,14 @@ pub fn from_lua_table(table: LuaTable) -> Value {
                 let field_name =
                         match k {
                             LuaValue::String(s) => s.to_str().unwrap().to_owned(),
-                            _ => panic!("wrong field type"),
+                            _ => panic!("wrong table key"),
                         };
                 match v {
                     LuaValue::Nil => {
                         o.insert(field_name, Value::Nil);
+                    },
+                    LuaValue::Boolean(v) => {
+                        o.insert(field_name, Value::Boolean(v));
                     },
                     LuaValue::Integer(v) => {
                         o.insert(field_name, Value::Integer(v));
@@ -152,13 +183,55 @@ pub fn from_lua_table(table: LuaTable) -> Value {
                     LuaValue::Table(ref t) => {
                         o.insert(field_name, from_lua_table(t.clone()));
                     },
-                    _ => panic!("wrong field value"),
+                    _ => panic!("wrong table value"),
                 }
             } // for
 
             Value::Object(o)
         }
     }
+}
+
+pub fn from_processed_template(table: LuaTable) -> String {
+    let mut res = String::new();
+    for pair in table.pairs::<LuaValue, LuaValue>() {
+        let (_, elem) = pair.unwrap();
+        match elem {
+            LuaValue::Boolean(b) => {
+                if b {
+                    res.push_str("true");
+                } else {
+                    res.push_str("false");
+                }
+            },
+            LuaValue::Integer(i) => {
+                res.push_str(&i.to_string());
+            },
+            LuaValue::String(s) => {
+                res.push_str(s.to_str().unwrap());
+            },
+            LuaValue::Table(t) => {
+                let classname =
+                        match t.get("_classname") {
+                            Ok(LuaValue::String(s)) => Some(s.to_str().unwrap().to_owned()),
+                            _ => None,
+                        };
+
+                if let Some(cname) = classname {
+                    if cname == "NullClass" {
+                        res.push_str("null");
+                    } else {
+                        panic!("wtf");
+                    }
+                } else {
+                    panic!("wtf");
+                }
+            },
+            _ => panic!("wtf"),
+        } // match
+    } // for
+
+    res
 }
 
 // Converts a given internal value into lua.
@@ -185,12 +258,12 @@ pub fn to_lua_string(value: &Value) -> String {
         },
         Value::Array(a) => {
             let mut sb = String::new();
-            sb.push_str("{");
+            sb.push_str("Array:new({");
             for (_, elem) in a.iter().enumerate() {
                 sb.push_str(&to_lua_string(elem));
                 sb.push(',');
             } // for
-            sb.push_str("}");
+            sb.push_str("})");
 
             sb
         },

@@ -7,6 +7,7 @@ extern crate serde_yaml;
 mod unit;
 mod value;
 mod command;
+mod template;
 
 use crate::unit::{
     LUA_PATH_SUFFIX,
@@ -153,11 +154,8 @@ fn main() {
     // }
 
     // (2ofx) Check and sanitize units.
-    let mut input_file_format: Option<FileFormat> = None;
-    let mut input_cnt = 0;
     let mut output_cnt = 0;
     let mut any_command = false;
-    let mut any_lua = false;
     for (unit_idx, unit) in units.iter_mut().enumerate() {
 
         eprintln!("[{}] {:?}", unit_idx, unit); // FIXME
@@ -177,107 +175,36 @@ fn main() {
                     if f.format == FileFormat::Unknown {
 
                     }
-                } else {
-                    input_cnt += 1;
                 }
             },
-            Unit::Merge => {
+            Unit::Check | Unit::Merge | Unit::Lua(_) | Unit::Template(_) => {
                 any_command = true;
             },
-            Unit::Lua(c) => {
-                any_command = true;
-                any_lua = true;
-            },
-            _ => {},
         }
     } // for
-    if !any_command {
-
-    }
-
-
-
-
-
-    if !any_command {
-        if units.len() != 2 {
-            panic!("wrong paramters");
-        }
-
-        let input_unit = &units[0];
-        let input_value =
-                match input_unit {
-                    Unit::File(f) => match f.format {
-                        FileFormat::Json => {
-                            let content =
-                                    match std::fs::read_to_string(&f.path) {
-                                        Ok(c) => c,
-                                        Err(e) => panic!("{}", e),
-                                    };
-
-                            value::from_json_str(&content).unwrap()
-                        },
-                        FileFormat::Yaml => {
-                            let content =
-                                    match std::fs::read_to_string(&f.path) {
-                                        Ok(c) => c,
-                                        Err(e) => panic!("{}", e),
-                                    };
-
-                            value::from_yaml_str(&content).unwrap()
-                        },
-                        _ => {
-                            eprintln!("wrong input");
-                            std::process::exit(21);
-                        },
-                    },
-                    _ => {
-                        eprintln!("no input");
-                        std::process::exit(20);
-                    },
-                };
-
-        let output_unit = &units[1];
-        let output_content =
-                match output_unit {
-                    Unit::File(f) => match f.format {
-                        FileFormat::Json => match f.pretty {
-                            Some(true) => match serde_json::to_string_pretty(&input_value) {
-                                Ok(c) => c,
-                                Err(e) => panic!("{}", e),
-                            },
-                            _ => match serde_json::to_string(&input_value) {
-                                Ok(c) => c,
-                                Err(e) => panic!("{}", e),
-                            },
-                        },
-                        FileFormat::Toml => match toml::to_string(&input_value) {
-                            Ok(c) => c,
-                            Err(e) => panic!("{}", e),
-                        },
-                        FileFormat::Yaml => match serde_yaml::to_string(&input_value) {
-                            Ok(c) => c,
-                            Err(e) => panic!("{}", e),
-                        },
-                        _ => panic!("unknown output format"),
-                    },
-                    _ => panic!("wrong unit"),
-                };
-
-        println!("{}", output_content);
-
-        std::process::exit(0);
-    }
 
     if any_command {
-        // Lua processing.
-        let mut lua_processed = false;
+        // Command processing.
+        let mut command_processed = false;
         let mut values = Vec::new();
         for (_, unit) in units.iter().enumerate() {
             match unit {
                 Unit::File(f) => match f.format {
+                    FileFormat::Unknown => {
+                        if command_processed {
+                            let v = &values[0];
+                            match v {
+                                value::Value::String(s) => {
+                                    print!("{}", s);
+                                },
+                                _ => panic!("wtf"),
+                            }
+                        } else {
+                            panic!("wtf");
+                        }
+                    },
                     FileFormat::Json => {
-                        if lua_processed {
+                        if command_processed {
                             let v = &values[0];
                             let output_content =
                                     match f.pretty {
@@ -302,7 +229,7 @@ fn main() {
                         }
                     },
                     FileFormat::Yaml => {
-                        if lua_processed {
+                        if command_processed {
                             let v = &values[0];
                             let output_content =
                                     match serde_yaml::to_string(&v) {
@@ -323,6 +250,9 @@ fn main() {
                     _ => {
                         panic!("not implemented yet");
                     },
+                },
+                Unit::Check => {
+                    command_processed = true;
                 },
                 Unit::Merge => {
                     let lua = rlua::Lua::new();
@@ -365,7 +295,7 @@ fn main() {
                                     _ => None,
                                 }
                             });
-                    lua_processed = true;
+                    command_processed = true;
                     if let Some(v) = output_value {
                         values.push(v);
                     }
@@ -399,7 +329,7 @@ fn main() {
                                     sb.push_str("table.insert(ctx.inputs,");
                                     sb.push_str(&value::to_lua_string(&value));
                                     sb.push_str(")");
-                                    println!("{}", sb);
+                                    // println!("{}", sb);
                                     lua_ctx.load(&sb).exec().unwrap();
                                 } // for
 
@@ -419,16 +349,133 @@ fn main() {
                                     _ => None,
                                 }
                             });
-                    lua_processed = true;
+                    command_processed = true;
                     if let Some(v) = output_value {
                         values.push(v);
                     }
                 },
-                _ => {
-                    panic!("not implemented yet");
+                Unit::Template(c) => {
+                    let template = template::Template::for_path(c.path.as_ref().unwrap());
+                    // println!("{}", template.content);
+                    let lua = rlua::Lua::new();
+                    let input_values = values.clone();
+                    values.clear();
+                    let output_value =
+                            lua.context(|lua_ctx| {
+                                match lua_ctx.load(command::LUA_PRELUDE).exec() {
+                                    Ok(_) => {},
+                                    Err(e) => panic!("{}", e),
+                                } // match
+
+                                let globals = lua_ctx.globals();
+
+                                let ctx: rlua::Table =
+                                        match globals.get("ctx") {
+                                            Ok(v) => v,
+                                            Err(e) => panic!("{}", e),
+                                        };
+
+                                for (_, value) in input_values.iter().enumerate() {
+                                    let mut sb = String::new();
+                                    sb.push_str("table.insert(ctx.inputs,");
+                                    sb.push_str(&value::to_lua_string(&value));
+                                    sb.push_str(")");
+                                    // println!("{}", sb);
+                                    lua_ctx.load(&sb).exec().unwrap();
+                                } // for
+
+                                match lua_ctx.load(&template.content).exec() {
+                                    Ok(_) => {},
+                                    Err(e) => panic!("{}", e),
+                                } // match
+
+                                let output: rlua::Value =
+                                        match ctx.get("output") {
+                                            Ok(v) => v,
+                                            Err(e) => panic!("{}", e),
+                                        };
+
+                                match output {
+                                    rlua::Value::Table(t) => Some(value::from_processed_template(t.clone())),
+                                    _ => None,
+                                }
+                            });
+                    command_processed = true;
+                    if let Some(v) = output_value {
+                        values.push(value::Value::String(v));
+                    }
                 },
             } // match
         } // for
         std::process::exit(0);
     }
+
+    // No command: input -> output.
+    if units.len() != 2 {
+        panic!("wrong paramters");
+    }
+
+    let input_unit = &units[0];
+    let input_value =
+            match input_unit {
+                Unit::File(f) => match f.format {
+                    FileFormat::Json => {
+                        let content =
+                                match std::fs::read_to_string(&f.path) {
+                                    Ok(c) => c,
+                                    Err(e) => panic!("{}", e),
+                                };
+
+                        value::from_json_str(&content).unwrap()
+                    },
+                    FileFormat::Yaml => {
+                        let content =
+                                match std::fs::read_to_string(&f.path) {
+                                    Ok(c) => c,
+                                    Err(e) => panic!("{}", e),
+                                };
+
+                        value::from_yaml_str(&content).unwrap()
+                    },
+                    _ => {
+                        eprintln!("wrong input");
+                        std::process::exit(21);
+                    },
+                },
+                _ => {
+                    eprintln!("no input");
+                    std::process::exit(20);
+                },
+            };
+
+    let output_unit = &units[1];
+    let output_content =
+            match output_unit {
+                Unit::File(f) => match f.format {
+                    FileFormat::Json => match f.pretty {
+                        Some(true) => match serde_json::to_string_pretty(&input_value) {
+                            Ok(c) => c,
+                            Err(e) => panic!("{}", e),
+                        },
+                        _ => match serde_json::to_string(&input_value) {
+                            Ok(c) => c,
+                            Err(e) => panic!("{}", e),
+                        },
+                    },
+                    FileFormat::Toml => match toml::to_string(&input_value) {
+                        Ok(c) => c,
+                        Err(e) => panic!("{}", e),
+                    },
+                    FileFormat::Yaml => match serde_yaml::to_string(&input_value) {
+                        Ok(c) => c,
+                        Err(e) => panic!("{}", e),
+                    },
+                    _ => panic!("unknown output format"),
+                },
+                _ => panic!("wrong unit"),
+            };
+
+    println!("{}", output_content);
+
+    std::process::exit(0);
 }

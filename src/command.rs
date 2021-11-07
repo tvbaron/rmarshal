@@ -37,6 +37,49 @@ NullClass.__index = NullClass
 NULL = {}
 setmetatable(NULL, NullClass)
 
+-- Represents an Array.
+Array = {
+    _classname = 'Array',
+}
+Array.__index = Array
+
+function Array:new(init)
+    local arr = {}
+    if (type(init) == 'table') then
+        for _, v in ipairs(init) do
+            table.insert(arr, v)
+        end
+    end
+    setmetatable(arr, self)
+    return arr
+end
+
+function Array:iterator()
+    return ipairs(self)
+end
+
+function Array:pop()
+    local last_val = self[#self]
+    table.remove(self)
+    return last_val
+end
+
+function Array:push(value)
+    table.insert(self, value)
+    return value
+end
+
+function Array:shift()
+    local first_val = self[1]
+    table.remove(self, 1)
+    return first_val
+end
+
+function Array:unshift(value)
+    table.insert(self, 1, value)
+    return value
+end
+
 -- Represents an Object with key insertion order iterator.
 Object = {
     _classname = 'Object',
@@ -168,6 +211,10 @@ function Context:new(ctx)
     }
     setmetatable(ctx, self)
     return ctx
+end
+
+function Context:get_input(idx)
+    return self.inputs[idx]
 end
 
 function Context:get_inputs()

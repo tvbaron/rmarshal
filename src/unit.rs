@@ -62,13 +62,13 @@ impl UnitFile {
         }
     }
 
-    pub fn for_path_format(path: &str, format: FileFormat) -> Self {
-        UnitFile {
-            path: path.to_owned(),
-            format,
-            pretty: None,
-        }
-    }
+    // pub fn for_path_format(path: &str, format: FileFormat) -> Self {
+    //     UnitFile {
+    //         path: path.to_owned(),
+    //         format,
+    //         pretty: None,
+    //     }
+    // }
 
     pub fn for_format(format: FileFormat) -> Self {
         UnitFile {
