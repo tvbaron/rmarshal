@@ -1,194 +1,207 @@
-use std::collections::LinkedList;
+use std::collections::VecDeque;
+use std::iter::FromIterator;
 
 #[derive(PartialEq, Eq, Clone)]
 enum Token {
     Expression(String),
-    NewLine,
-    Statement(String, bool, bool), // (statement: String, trim_before: bool, trim_after: bool).
+    Statement(String),
     Text(String),
 }
 
-impl Token {
-    fn is_newline(&self) -> bool {
-        *self == Token::NewLine
-    }
-
-    fn is_statement_trim_before(&self) -> bool {
-        if let Token::Statement(_, trim_before, _) = self {
-            *trim_before == true
-        } else {
-            false
-        }
-    }
-
-    fn is_statement_trim_after(&self) -> bool {
-        if let Token::Statement(_, _, trim_after) = self {
-            *trim_after == true
-        } else {
-            false
-        }
-    }
-
-    fn is_blank_text(&self) -> bool {
-        if let Token::Text(t) = self {
-            for c in t.chars() {
-                if c == ' ' || c == '\t' {
-                    continue;
-                }
-
-                return false;
-            } // for
-
-            true
-        } else {
-            false
-        }
-    }
+#[derive(PartialEq, Eq)]
+enum Context {
+    Comment,
+    Expression,
+    Statement,
+    Text,
 }
 
 // Performs a lexical analysis on a given template.
-fn tokenize(content: &str) -> Result<LinkedList<Token>, ()> {
-    let mut content = content.to_owned();
-    let mut tokens = LinkedList::new();
+fn tokenize(content: &str) -> Result<VecDeque<Token>, ()> {
+    let mut content = VecDeque::from_iter(content.chars());
+    let mut tokens = VecDeque::new();
 
-    // let mut loop_cnt = 0;
+    let mut context = Context::Text;
+    let mut buf = String::new();
     loop {
-        if content.is_empty() {
-            break;
-        }
+        let curr =
+                match content.pop_front() {
+                    Some(c) => c,
+                    None => {
+                        if context != Context::Text {
+                            return Err(());
+                        }
 
-        // loop_cnt += 1;
-        // println!("[{}]->{}<-", loop_cnt, content);
-
-        let mut newline_idx =
-                match content.find("\n") {
-                    Some(i) => i as i64,
-                    None => -1,
-                };
-        let mut tag_idx =
-                match content.find("<%") {
-                    Some(i) => i as i64,
-                    None => -1,
+                        if !buf.is_empty() {
+                            tokens.push_back(Token::Text(buf.clone()));
+                        }
+                        break;
+                    },
                 };
 
-        if newline_idx < 0 && tag_idx < 0 {
-            // This is the end of the template.
-            tokens.push_back(Token::Text(content));
-            break;
-        }
+        if context == Context::Text {
+            // Text.
+            if curr == '<' {
+                // '<'
+                match content.pop_front() {
+                    Some('%') => {
+                        // '<%'
+                        match content.pop_front() {
+                            Some('%') => {
+                                // '<%%'
+                                // Escape '%'.
+                                buf.push('<');
+                                buf.push('%');
+                            },
+                            Some('#') => {
+                                // '<%#'
+                                // Change of mode -> comment.
+                                if !buf.is_empty() {
+                                    tokens.push_back(Token::Text(buf.clone()));
+                                    buf.clear();
+                                }
+                                context = Context::Comment;
+                            },
+                            Some('=') => {
+                                // '<%='
+                                // Change of mode -> expression.
+                                if !buf.is_empty() {
+                                    tokens.push_back(Token::Text(buf.clone()));
+                                    buf.clear();
+                                }
+                                context = Context::Expression;
+                            },
+                            Some('-') => {
+                                // '<%-'
+                                // Change of mode -> statement.
+                                if !buf.is_empty() {
+                                    let mut cnt = 0;
+                                    let mut tmp = buf.clone();
+                                    loop {
+                                        match tmp.pop() {
+                                            Some(c) => {
+                                                if c == ' ' || c == '\t' {
+                                                    cnt += 1;
+                                                    continue;
+                                                } else if c == '\n' {
+                                                    break;
+                                                } else {
+                                                    cnt = 0;
+                                                    break;
+                                                }
+                                            },
+                                            None => {
+                                                cnt = 0;
+                                                break;
+                                            },
+                                        }
+                                    } // loop
+                                    loop {
+                                        if cnt == 0 {
+                                            break;
+                                        }
 
-        assert_ne!(newline_idx, tag_idx);
-
-        // Check what is coming first between the newline and the tag.
-        if newline_idx >= 0 && tag_idx >= 0 {
-            // There are both a newline and a tag ahead.
-            if newline_idx < tag_idx {
-                // The newline comes before the tag.
-                tag_idx = -1;
-            } else {
-                // The tag comes before the newline.
-                newline_idx = -1;
-            }
-        }
-
-        if newline_idx >= 0 {
-            // Process a line without tag.
-            if newline_idx > 0 {
-                let i = newline_idx as usize;
-                let c: String = content.drain(..i).collect();
-                tokens.push_back(Token::Text(c));
-            }
-            content.remove(0);
-            tokens.push_back(Token::NewLine);
-        }
-
-        else if tag_idx >= 0 {
-            // Process a tag.
-            if tag_idx > 0 {
-                // There is some text before the tag.
-                let i = tag_idx as usize;
-                let c: String = content.drain(..i).collect();
-                tokens.push_back(Token::Text(c));
-            }
-            if let Some(end_idx) = content.find("%>") {
-                if content.starts_with("<%=") {
-                    // Deal with an expression.
-                    let c: String = content.drain(3..end_idx).collect();
-                    tokens.push_back(Token::Expression(c.trim().to_owned()));
-                    content.drain(..5);
-                } else {
-                    // Deal with a statement.
-                    let mut c: String = content.drain(2..end_idx).collect();
-                    let mut trim_before = false;
-                    let mut trim_after = false;
-                    if c.starts_with("-") {
-                        trim_before = true;
-                        c.remove(0);
-                    }
-                    if c.ends_with("-") {
-                        trim_after = true;
-                        c.remove(c.len() - 1);
-                    }
-                    tokens.push_back(Token::Statement(c.trim().to_owned(), trim_before, trim_after));
-                    content.drain(..4);
+                                        buf.pop();
+                                        cnt -= 1;
+                                    } // loop
+                                    tokens.push_back(Token::Text(buf.clone()));
+                                    buf.clear();
+                                }
+                                context = Context::Statement;
+                            },
+                            Some(c) => {
+                                // Change of mode -> statement.
+                                if !buf.is_empty() {
+                                    tokens.push_back(Token::Text(buf.clone()));
+                                    buf.clear();
+                                }
+                                buf.push(c);
+                                context = Context::Statement;
+                            },
+                            None => return Err(()),
+                        }
+                    },
+                    Some(c) => {
+                        buf.push('<');
+                        buf.push(c);
+                    },
+                    None => {
+                        buf.push('<');
+                        tokens.push_back(Token::Text(buf.clone()));
+                        break;
+                    },
                 }
             } else {
-                // A tag must be closed.
-                return Err(());
+                buf.push(curr);
             }
-        }
+        } else {
+            // Directive.
+            if curr == '%' {
+                // '%'
+                match content.pop_front() {
+                    Some('>') => {
+                        // '%>'
+                        // Change of mode -> text.
+                        if !buf.is_empty() {
+                            match context {
+                                Context::Comment => {
+                                    // Nothing to do.
+                                },
+                                Context::Expression => {
+                                    tokens.push_back(Token::Expression(buf.trim().to_owned()));
+                                },
+                                Context::Statement => {
+                                    if buf.ends_with("-") {
+                                        buf.pop();
+                                        let mut cnt = 0;
+                                        for (_, c) in content.iter().enumerate() {
+                                            if *c == ' ' || *c == '\t' {
+                                                cnt += 1;
+                                                continue;
+                                            } else if *c == '\n' {
+                                                cnt += 1;
+                                                break;
+                                            } else {
+                                                cnt = 0;
+                                                break;
+                                            }
+                                        } // for
+                                        loop {
+                                            if cnt == 0 {
+                                                break;
+                                            }
 
-        else {
-            panic!("wtf");
+                                            content.pop_front();
+                                            cnt -= 1;
+                                        } // loop
+                                    }
+                                    tokens.push_back(Token::Statement(buf.trim().to_owned()));
+                                },
+                                _ => panic!("wtf"),
+                            }
+                            buf.clear();
+                        }
+                        context = Context::Text;
+                    },
+                    Some('%') => {
+                        // '%%'
+                        // Escape '%'.
+                        buf.push('%');
+                    },
+                    Some(_) => {
+                        return Err(());
+                    },
+                    None => {
+                        return Err(());
+                    },
+                }
+            } else {
+                buf.push(curr);
+            }
         }
     } // loop
 
     Ok(tokens)
-}
-
-// Collects the next line.
-fn collect_line(tokens: &mut LinkedList<Token>) -> Vec<Token> {
-    let mut res = Vec::new();
-    let mut newline = false;
-
-    // (1of3) Collect the next line.
-    loop {
-        if let Some(token) = tokens.pop_front() {
-            if token.is_newline() {
-                newline = true;
-                break;
-            }
-
-            res.push(token.clone());
-        } else {
-            break;
-        }
-    } // loop
-
-    // (2of3) Trim blank text before/after statements if necessary.
-    let mut idx = 0;
-    loop {
-        let rem = res.len() - idx;
-        if rem <= 1 {
-            break;
-        }
-
-        if res[idx].is_blank_text() && res[idx + 1].is_statement_trim_before() {
-            res.remove(0);
-            continue;
-        } else if res[idx].is_statement_trim_after() && res[idx + 1].is_blank_text() {
-            res.remove(1);
-        }
-
-        idx += 1;
-    } // loop
-
-    // (3of3) Add a newline if necessary.
-    if newline && (res.len() != 1 || !res[0].is_statement_trim_after()) {
-        res.push(Token::NewLine);
-    }
-
-    res
 }
 
 // Converts a given template into lua code.
@@ -201,36 +214,29 @@ fn parse_template(content: &str) -> Result<String, ()> {
 
     let mut res = String::new();
     res.push_str("local _sb = {}\n");
-
     loop {
-        if tokens.is_empty() {
-            break;
-        }
+        let token =
+                match tokens.pop_front() {
+                    Some(t) => t,
+                    None => break,
+                };
 
-        let line = collect_line(&mut tokens);
-        for token in &line {
-            match token {
-                Token::Expression(e) => {
-                    res.push_str("table.insert(_sb, ");
-                    res.push_str(e);
-                    res.push_str(")\n");
-                },
-                Token::NewLine => {
-                    res.push_str("table.insert(_sb, [[\n");
-                    res.push_str("\n");
-                    res.push_str("]])\n");
-                },
-                Token::Statement(s, _, _) => {
-                    res.push_str(s);
-                    res.push_str("\n");
-                },
-                Token::Text(t) => {
-                    res.push_str("table.insert(_sb, [[");
-                    res.push_str(t);
-                    res.push_str("]])\n");
-                },
-            }
-        } // for
+        match token {
+            Token::Expression(e) => {
+                res.push_str("table.insert(_sb, ");
+                res.push_str(&e);
+                res.push_str(")\n");
+            },
+            Token::Statement(s) => {
+                res.push_str(&s);
+                res.push_str("\n");
+            },
+            Token::Text(t) => {
+                res.push_str("table.insert(_sb, [[\n");
+                res.push_str(&t);
+                res.push_str("]])\n");
+            },
+        }
     } // loop
     res.push_str("ctx:set_output(_sb)\n");
 
