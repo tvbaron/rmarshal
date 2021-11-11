@@ -82,6 +82,7 @@ impl UnitFile {
 #[derive(Debug, Default)]
 pub struct UnitCommand {
     pub path: Option<String>,
+    // pub depth: Option<usize>,
 }
 
 impl UnitCommand {
@@ -97,6 +98,7 @@ impl UnitCommand {
 pub enum Unit {
     File(UnitFile),
     Check,
+    Copy,
     Merge,
     Lua(UnitCommand),
     Template(UnitCommand),

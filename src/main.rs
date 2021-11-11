@@ -4,6 +4,8 @@ extern crate serde;
 extern crate serde_json;
 extern crate serde_yaml;
 
+use std::collections::VecDeque;
+
 mod unit;
 mod value;
 mod command;
@@ -35,11 +37,11 @@ const SHORT_OPTION_PREFIX_LEN: usize = SHORT_OPTION_PREFIX.len();
  */
 fn main() {
     // (1ofx) Parse arguments.
-    let mut units: Vec<Unit> = Vec::new();
+    let mut units: VecDeque<Unit> = VecDeque::new();
     let args: Vec<String> = std::env::args().skip(1).collect();
     for arg in args {
         if arg == STDIO_PLACEHOLDER {
-            if let Some(last_unit) = units.last_mut() {
+            if let Some(last_unit) = units.back_mut() {
                 if let Unit::File(f) = last_unit {
                     if f.path.is_empty() {
                         f.path = STDIO_PLACEHOLDER.to_owned();
@@ -48,7 +50,7 @@ fn main() {
                 }
             }
 
-            units.push(Unit::File(UnitFile::for_path(STDIO_PLACEHOLDER)));
+            units.push_back(Unit::File(UnitFile::for_path(STDIO_PLACEHOLDER)));
         } else if arg.starts_with(LONG_OPTION_PREFIX) {
             if arg.len() <= LONG_OPTION_PREFIX_LEN {
                 eprintln!("wrong parameter");
@@ -57,15 +59,17 @@ fn main() {
 
             if let Some(option) = arg.get(LONG_OPTION_PREFIX_LEN..) {
                 if option == "check" {
-                    units.push(Unit::Check);
+                    units.push_back(Unit::Check);
+                } else if option == "copy" {
+                    units.push_back(Unit::Copy);
                 } else if option == "merge" {
-                    units.push(Unit::Merge);
+                    units.push_back(Unit::Merge);
                 } else if option == "lua" {
-                    units.push(Unit::Lua(UnitCommand::default()));
+                    units.push_back(Unit::Lua(UnitCommand::default()));
                 } else if option == "template" {
-                    units.push(Unit::Template(UnitCommand::default()));
+                    units.push_back(Unit::Template(UnitCommand::default()));
                 } else if option == "pretty" {
-                    if let Some(last_unit) = units.last_mut() {
+                    if let Some(last_unit) = units.back_mut() {
                         if let Unit::File(f) = last_unit {
                             // The last unit is a file.
                             if f.path.is_empty() {
@@ -77,12 +81,12 @@ fn main() {
 
                     let mut file = UnitFile::default();
                     file.pretty = Some(true);
-                    units.push(Unit::File(file));
+                    units.push_back(Unit::File(file));
                 } else {
                     // Try a file format.
                     let format = FileFormat::for_str(option);
                     if format.is_known() {
-                        if let Some(last_unit) = units.last_mut() {
+                        if let Some(last_unit) = units.back_mut() {
                             if let Unit::File(f) = last_unit {
                                 // The last unit is a file.
                                 if f.path.is_empty() {
@@ -92,7 +96,7 @@ fn main() {
                             }
                         }
 
-                        units.push(Unit::File(UnitFile::for_format(format)));
+                        units.push_back(Unit::File(UnitFile::for_format(format)));
                     } else {
                         eprintln!("wrong parameter");
                         std::process::exit(10);
@@ -116,7 +120,7 @@ fn main() {
             }
         } else {
             // The argment is a path.
-            if let Some(last_unit) = units.last_mut() {
+            if let Some(last_unit) = units.back_mut() {
                 match last_unit {
                     Unit::File(f) => {
                         // The last unit is a file.
@@ -139,343 +143,295 @@ fn main() {
 
             let lc_path = arg.to_lowercase();
             if lc_path.ends_with(LUA_PATH_SUFFIX) {
-                units.push(Unit::Lua(UnitCommand::for_path(&arg)));
+                units.push_back(Unit::Lua(UnitCommand::for_path(&arg)));
             } else {
-                units.push(Unit::File(UnitFile::for_path(&arg)));
+                units.push_back(Unit::File(UnitFile::for_path(&arg)));
             }
         }
     } // for
-    // if let Some(u) = units.last_mut() {
-    //     if let Unit::File(f) = u {
-    //         if f.path.is_empty() {
-    //             f.path = STDIO_PLACEHOLDER.to_owned();
-    //         }
-    //     }
-    // }
 
-    // (2ofx) Check and sanitize units.
-    let mut output_cnt = 0;
-    let mut any_command = false;
+    // Debug.
     for (unit_idx, unit) in units.iter_mut().enumerate() {
-
         eprintln!("[{}] {:?}", unit_idx, unit); // FIXME
-
-        match unit {
-            Unit::File(f) => {
-                if any_command {
-                    if output_cnt > 0 {
-                        eprintln!("wrong parameter");
-                        std::process::exit(10);
-                    }
-
-                    output_cnt += 1;
-                    if f.path.is_empty() {
-                        f.path = STDIO_PLACEHOLDER.to_owned();
-                    }
-                    if f.format == FileFormat::Unknown {
-
-                    }
-                }
-            },
-            Unit::Check | Unit::Merge | Unit::Lua(_) | Unit::Template(_) => {
-                any_command = true;
-            },
-        }
     } // for
 
-    if any_command {
-        // Command processing.
-        let mut command_processed = false;
-        let mut values = Vec::new();
-        for (_, unit) in units.iter().enumerate() {
-            match unit {
-                Unit::File(f) => match f.format {
-                    FileFormat::Unknown => {
-                        if command_processed {
-                            let v = &values[0];
-                            match v {
-                                value::Value::String(s) => {
-                                    print!("{}", s);
-                                },
-                                _ => panic!("wtf"),
-                            }
-                        } else {
-                            panic!("wtf");
-                        }
-                    },
-                    FileFormat::Json => {
-                        if command_processed {
-                            let v = &values[0];
-                            let output_content =
-                                    match f.pretty {
-                                        Some(true) => match serde_json::to_string_pretty(&v) {
-                                            Ok(c) => c,
-                                            Err(e) => panic!("{}", e),
-                                        },
-                                        _ => match serde_json::to_string(&v) {
-                                            Ok(c) => c,
-                                            Err(e) => panic!("{}", e),
-                                        },
-                                    };
-                            println!("{}", output_content);
-                        } else {
-                            let content =
-                                    match std::fs::read_to_string(&f.path) {
-                                        Ok(c) => c,
-                                        Err(e) => panic!("{}", e),
-                                    };
-
-                            values.push(value::from_json_str(&content).unwrap());
-                        }
-                    },
-                    FileFormat::Yaml => {
-                        if command_processed {
-                            let v = &values[0];
-                            let output_content =
-                                    match serde_yaml::to_string(&v) {
-                                        Ok(c) => c,
-                                        Err(e) => panic!("{}", e),
-                                    };
-                            println!("{}", output_content);
-                        } else {
-                            let content =
-                                    match std::fs::read_to_string(&f.path) {
-                                        Ok(c) => c,
-                                        Err(e) => panic!("{}", e),
-                                    };
-
-                            values.push(value::from_yaml_str(&content).unwrap());
-                        }
-                    },
-                    _ => {
-                        panic!("not implemented yet");
-                    },
-                },
-                Unit::Check => {
-                    command_processed = true;
-                },
-                Unit::Merge => {
-                    let lua = rlua::Lua::new();
-                    let input_values = values.clone();
-                    values.clear();
-                    let output_value =
-                            lua.context(|lua_ctx| {
-                                match lua_ctx.load(command::LUA_PRELUDE).exec() {
-                                    Ok(_) => {},
-                                    Err(e) => panic!("{}", e),
-                                } // match
-
-                                let globals = lua_ctx.globals();
-
-                                let ctx: rlua::Table =
-                                        match globals.get("ctx") {
-                                            Ok(v) => v,
-                                            Err(e) => panic!("{}", e),
-                                        };
-
-                                for (_, value) in input_values.iter().enumerate() {
-                                    let mut sb = String::new();
-                                    sb.push_str("table.insert(ctx.inputs,");
-                                    sb.push_str(&value::to_lua_string(&value));
-                                    sb.push_str(")");
-                                    println!("{}", sb);
-                                    lua_ctx.load(&sb).exec().unwrap();
-                                } // for
-
-                                lua_ctx.load("ctx:set_output(ctx:merge_inputs())").exec().unwrap();
-
-                                let output: rlua::Value =
-                                        match ctx.get("output") {
-                                            Ok(v) => v,
-                                            Err(e) => panic!("{}", e),
-                                        };
-
-                                match output {
-                                    rlua::Value::Table(t) => Some(value::from_lua_table(t.clone())),
-                                    _ => None,
-                                }
-                            });
-                    command_processed = true;
-                    if let Some(v) = output_value {
-                        values.push(v);
-                    }
-                },
-                Unit::Lua(c) => {
-                    let lua_content =
-                            match std::fs::read_to_string(c.path.as_ref().unwrap()) {
+    // (2ofx) Read input documents.
+    let mut values = VecDeque::new();
+    loop {
+        let unit =
+                match units.pop_front() {
+                    Some(u) => u,
+                    None => break,
+                };
+        match unit {
+            Unit::File(f) => match f.format {
+                FileFormat::Unknown => panic!("wtf"),
+                FileFormat::Json => {
+                    let content =
+                            match std::fs::read_to_string(&f.path) {
                                 Ok(c) => c,
                                 Err(e) => panic!("{}", e),
                             };
-                    let lua = rlua::Lua::new();
-                    let input_values = values.clone();
-                    values.clear();
-                    let output_value =
-                            lua.context(|lua_ctx| {
-                                match lua_ctx.load(command::LUA_PRELUDE).exec() {
-                                    Ok(_) => {},
-                                    Err(e) => panic!("{}", e),
-                                } // match
 
-                                let globals = lua_ctx.globals();
-
-                                let ctx: rlua::Table =
-                                        match globals.get("ctx") {
-                                            Ok(v) => v,
-                                            Err(e) => panic!("{}", e),
-                                        };
-
-                                for (_, value) in input_values.iter().enumerate() {
-                                    let mut sb = String::new();
-                                    sb.push_str("table.insert(ctx.inputs,");
-                                    sb.push_str(&value::to_lua_string(&value));
-                                    sb.push_str(")");
-                                    // println!("{}", sb);
-                                    lua_ctx.load(&sb).exec().unwrap();
-                                } // for
-
-                                match lua_ctx.load(&lua_content).exec() {
-                                    Ok(_) => {},
-                                    Err(e) => panic!("{}", e),
-                                } // match
-
-                                let output: rlua::Value =
-                                        match ctx.get("output") {
-                                            Ok(v) => v,
-                                            Err(e) => panic!("{}", e),
-                                        };
-
-                                match output {
-                                    rlua::Value::Table(t) => Some(value::from_lua_table(t.clone())),
-                                    _ => None,
-                                }
-                            });
-                    command_processed = true;
-                    if let Some(v) = output_value {
-                        values.push(v);
-                    }
+                    values.push_back(value::from_json_str(&content).unwrap());
                 },
-                Unit::Template(c) => {
-                    let template = template::Template::for_path(c.path.as_ref().unwrap());
-                    // println!("{}", template.content);
-                    let lua = rlua::Lua::new();
-                    let input_values = values.clone();
-                    values.clear();
-                    let output_value =
-                            lua.context(|lua_ctx| {
-                                match lua_ctx.load(command::LUA_PRELUDE).exec() {
-                                    Ok(_) => {},
-                                    Err(e) => panic!("{}", e),
-                                } // match
+                FileFormat::Yaml => {
+                    let content =
+                            match std::fs::read_to_string(&f.path) {
+                                Ok(c) => c,
+                                Err(e) => panic!("{}", e),
+                            };
 
-                                let globals = lua_ctx.globals();
-
-                                let ctx: rlua::Table =
-                                        match globals.get("ctx") {
-                                            Ok(v) => v,
-                                            Err(e) => panic!("{}", e),
-                                        };
-
-                                for (_, value) in input_values.iter().enumerate() {
-                                    let mut sb = String::new();
-                                    sb.push_str("table.insert(ctx.inputs,");
-                                    sb.push_str(&value::to_lua_string(&value));
-                                    sb.push_str(")");
-                                    // println!("{}", sb);
-                                    lua_ctx.load(&sb).exec().unwrap();
-                                } // for
-
-                                match lua_ctx.load(&template.content).exec() {
-                                    Ok(_) => {},
-                                    Err(e) => panic!("{}", e),
-                                } // match
-
-                                let output: rlua::Value =
-                                        match ctx.get("output") {
-                                            Ok(v) => v,
-                                            Err(e) => panic!("{}", e),
-                                        };
-
-                                match output {
-                                    rlua::Value::Table(t) => Some(value::from_processed_template(t.clone())),
-                                    _ => None,
-                                }
-                            });
-                    command_processed = true;
-                    if let Some(v) = output_value {
-                        values.push(value::Value::String(v));
-                    }
+                    values.push_back(value::from_yaml_str(&content).unwrap());
                 },
-            } // match
-        } // for
-        std::process::exit(0);
-    }
+                _ => panic!("not implemented"),
+            },
+            _ => {
+                units.push_front(unit);
+                break;
+            },
+        }
+    } // loop
 
-    // No command: input -> output.
-    if units.len() != 2 {
-        panic!("wrong paramters");
-    }
+    // (3ofx) Process commands.
+    loop {
+        let unit =
+                match units.pop_front() {
+                    Some(u) => u,
+                    None => break,
+                };
+        match unit {
+            Unit::Copy => {
+                break;
+            },
+            Unit::Check => {
+                std::process::exit(0);
+            },
+            Unit::Merge => {
+                let lua = rlua::Lua::new();
+                let input_values = values.clone();
+                values.clear();
+                let output_value =
+                        lua.context(|lua_ctx| {
+                            match lua_ctx.load(command::LUA_PRELUDE).exec() {
+                                Ok(_) => {},
+                                Err(e) => panic!("{}", e),
+                            } // match
 
-    let input_unit = &units[0];
-    let input_value =
-            match input_unit {
-                Unit::File(f) => match f.format {
-                    FileFormat::Json => {
-                        let content =
-                                match std::fs::read_to_string(&f.path) {
-                                    Ok(c) => c,
-                                    Err(e) => panic!("{}", e),
-                                };
+                            let globals = lua_ctx.globals();
 
-                        value::from_json_str(&content).unwrap()
-                    },
-                    FileFormat::Yaml => {
-                        let content =
-                                match std::fs::read_to_string(&f.path) {
-                                    Ok(c) => c,
-                                    Err(e) => panic!("{}", e),
-                                };
+                            let ctx: rlua::Table =
+                                    match globals.get("ctx") {
+                                        Ok(v) => v,
+                                        Err(e) => panic!("{}", e),
+                                    };
 
-                        value::from_yaml_str(&content).unwrap()
-                    },
-                    _ => {
-                        eprintln!("wrong input");
-                        std::process::exit(21);
-                    },
-                },
-                _ => {
-                    eprintln!("no input");
-                    std::process::exit(20);
-                },
-            };
+                            for (_, value) in input_values.iter().enumerate() {
+                                let mut sb = String::new();
+                                sb.push_str("table.insert(ctx.inputs,");
+                                sb.push_str(&value::to_lua_string(&value));
+                                sb.push_str(")");
+                                println!("{}", sb);
+                                lua_ctx.load(&sb).exec().unwrap();
+                            } // for
 
-    let output_unit = &units[1];
-    let output_content =
-            match output_unit {
-                Unit::File(f) => match f.format {
-                    FileFormat::Json => match f.pretty {
-                        Some(true) => match serde_json::to_string_pretty(&input_value) {
+                            lua_ctx.load("ctx:set_output(ctx:merge_inputs())").exec().unwrap();
+
+                            let output: rlua::Value =
+                                    match ctx.get("output") {
+                                        Ok(v) => v,
+                                        Err(e) => panic!("{}", e),
+                                    };
+
+                            match output {
+                                rlua::Value::Table(t) => Some(value::from_lua_table(t.clone())),
+                                _ => None,
+                            }
+                        });
+                if let Some(v) = output_value {
+                    values.push_back(v);
+                }
+            },
+            Unit::Lua(c) => {
+                let lua_content =
+                        match std::fs::read_to_string(c.path.as_ref().unwrap()) {
                             Ok(c) => c,
                             Err(e) => panic!("{}", e),
-                        },
-                        _ => match serde_json::to_string(&input_value) {
-                            Ok(c) => c,
-                            Err(e) => panic!("{}", e),
-                        },
-                    },
-                    FileFormat::Toml => match toml::to_string(&input_value) {
-                        Ok(c) => c,
-                        Err(e) => panic!("{}", e),
-                    },
-                    FileFormat::Yaml => match serde_yaml::to_string(&input_value) {
-                        Ok(c) => c,
-                        Err(e) => panic!("{}", e),
-                    },
-                    _ => panic!("unknown output format"),
+                        };
+                let lua = rlua::Lua::new();
+                let input_values = values.clone();
+                values.clear();
+                let output_value =
+                        lua.context(|lua_ctx| {
+                            match lua_ctx.load(command::LUA_PRELUDE).exec() {
+                                Ok(_) => {},
+                                Err(e) => panic!("{}", e),
+                            } // match
+
+                            let globals = lua_ctx.globals();
+
+                            let ctx: rlua::Table =
+                                    match globals.get("ctx") {
+                                        Ok(v) => v,
+                                        Err(e) => panic!("{}", e),
+                                    };
+
+                            for (_, value) in input_values.iter().enumerate() {
+                                let mut sb = String::new();
+                                sb.push_str("table.insert(ctx.inputs,");
+                                sb.push_str(&value::to_lua_string(&value));
+                                sb.push_str(")");
+                                // println!("{}", sb);
+                                lua_ctx.load(&sb).exec().unwrap();
+                            } // for
+
+                            match lua_ctx.load(&lua_content).exec() {
+                                Ok(_) => {},
+                                Err(e) => panic!("{}", e),
+                            } // match
+
+                            let output: rlua::Value =
+                                    match ctx.get("output") {
+                                        Ok(v) => v,
+                                        Err(e) => panic!("{}", e),
+                                    };
+
+                            match output {
+                                rlua::Value::Table(t) => Some(value::from_lua_table(t.clone())),
+                                _ => None,
+                            }
+                        });
+                if let Some(v) = output_value {
+                    values.push_back(v);
+                }
+            },
+            Unit::Template(c) => {
+                let template = template::Template::for_path(c.path.as_ref().unwrap());
+                // println!("{}", template.content);
+                let lua = rlua::Lua::new();
+                let input_values = values.clone();
+                values.clear();
+                let output_value =
+                        lua.context(|lua_ctx| {
+                            match lua_ctx.load(command::LUA_PRELUDE).exec() {
+                                Ok(_) => {},
+                                Err(e) => panic!("{}", e),
+                            } // match
+
+                            let globals = lua_ctx.globals();
+
+                            let ctx: rlua::Table =
+                                    match globals.get("ctx") {
+                                        Ok(v) => v,
+                                        Err(e) => panic!("{}", e),
+                                    };
+
+                            for (_, value) in input_values.iter().enumerate() {
+                                let mut sb = String::new();
+                                sb.push_str("table.insert(ctx.inputs,");
+                                sb.push_str(&value::to_lua_string(&value));
+                                sb.push_str(")");
+                                // println!("{}", sb);
+                                lua_ctx.load(&sb).exec().unwrap();
+                            } // for
+
+                            match lua_ctx.load(&template.content).exec() {
+                                Ok(_) => {},
+                                Err(e) => panic!("{}", e),
+                            } // match
+
+                            let output: rlua::Value =
+                                    match ctx.get("output") {
+                                        Ok(v) => v,
+                                        Err(e) => panic!("{}", e),
+                                    };
+
+                            match output {
+                                rlua::Value::Table(t) => Some(value::from_processed_template(t.clone())),
+                                _ => None,
+                            }
+                        });
+                if let Some(v) = output_value {
+                    values.push_back(value::Value::String(v));
+                }
+            },
+            _ => {
+                units.push_front(unit);
+                break;
+            },
+        }
+    } // loop
+
+    // (4ofx) Write output documents.
+    loop {
+        let unit =
+                match units.pop_front() {
+                    Some(u) => u,
+                    None => break,
+                };
+        match unit {
+            Unit::File(f) => match f.format {
+                FileFormat::Unknown => {
+                    let v = values.pop_front().unwrap();
+                    if let value::Value::String(s) = v {
+                        if f.path == "-" {
+                            print!("{}", s);
+                        } else {
+                            match std::fs::write(f.path, s) {
+                                Ok(_) => {},
+                                Err(e) => panic!("{}", e),
+                            }
+                        }
+                    } else {
+                        panic!("wtf");
+                    }
                 },
-                _ => panic!("wrong unit"),
-            };
-
-    println!("{}", output_content);
-
-    std::process::exit(0);
+                FileFormat::Json => {
+                    let v = values.pop_front().unwrap();
+                    let mut output_content =
+                            match f.pretty {
+                                Some(true) => match serde_json::to_string_pretty(&v) {
+                                    Ok(c) => c,
+                                    Err(e) => panic!("{}", e),
+                                },
+                                _ => match serde_json::to_string(&v) {
+                                    Ok(c) => c,
+                                    Err(e) => panic!("{}", e),
+                                },
+                            };
+                    output_content.push('\n');
+                    if f.path == "-" {
+                        print!("{}", output_content);
+                    } else {
+                        match std::fs::write(f.path, output_content) {
+                            Ok(_) => {},
+                            Err(e) => panic!("{}", e),
+                        }
+                    }
+                },
+                FileFormat::Yaml => {
+                    let v = values.pop_front().unwrap();
+                    let mut output_content =
+                            match serde_yaml::to_string(&v) {
+                                Ok(c) => c,
+                                Err(e) => panic!("{}", e),
+                            };
+                    output_content.push('\n');
+                    if f.path == "-" {
+                        print!("{}", output_content);
+                    } else {
+                        match std::fs::write(f.path, output_content) {
+                            Ok(_) => {},
+                            Err(e) => panic!("{}", e),
+                        }
+                    }
+                },
+                _ => panic!("not implemented"),
+            },
+            _ => {
+                units.push_front(unit);
+                break;
+            },
+        }
+    } // loop
 }
