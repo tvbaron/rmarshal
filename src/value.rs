@@ -272,8 +272,10 @@ pub fn to_lua_string(value: &Value) -> String {
             sb.push_str("Object:new({");
             for (k, v) in o {
                 sb.push('{');
+                sb.push('"');
                 sb.push_str(k);
-                sb.push('=');
+                sb.push('"');
+                sb.push(',');
                 sb.push_str(&to_lua_string(v));
                 sb.push('}');
                 sb.push(',');

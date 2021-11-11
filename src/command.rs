@@ -1,5 +1,7 @@
 pub const LUA_PRELUDE: &str = r#"
 -- Tests whether a given table can be treated as an array.
+-- @param tab [table]
+-- @return [boolean]
 function is_table_array(tab)
     local idx = 1
     for k, _ in pairs(tab) do
@@ -12,6 +14,8 @@ function is_table_array(tab)
     return true
 end
 
+-- Returns the type of a given value.
+-- @return [string] Either 'null', 'object', 'array' or any of what the function type() returns.
 function typeof(v)
     local t = type(v)
     if t == 'table' then
@@ -94,18 +98,14 @@ function Object:new(init)
         values = {},
     }
     if (type(init) == 'table') then
-        if (is_table_array(init)) then
-            for _, entries in ipairs(init) do
-                for k, v in pairs(entries) do
-                    table.insert(obj.keys, k)
-                    obj.values[k] = v
-                end
+        for _, tuple in ipairs(init) do
+            local k = tuple[1]
+            if (type(k) ~= 'string' or k:len() <= 0) then
+                error('wrong key format')
             end
-        else
-            for k, v in pairs(init) do
-                table.insert(obj.keys, k)
-                obj.values[k] = v
-            end
+
+            table.insert(obj.keys, k)
+            obj.values[k] = tuple[2]
         end
     end
     setmetatable(obj, self)
