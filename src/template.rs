@@ -145,7 +145,30 @@ fn tokenize(content: &str) -> Result<VecDeque<Token>, ()> {
                         if !buf.is_empty() {
                             match context {
                                 Context::Comment => {
-                                    // Nothing to do.
+                                    if buf.ends_with("-") {
+                                        buf.pop();
+                                        let mut cnt = 0;
+                                        for (_, c) in content.iter().enumerate() {
+                                            if *c == ' ' || *c == '\t' {
+                                                cnt += 1;
+                                                continue;
+                                            } else if *c == '\n' {
+                                                cnt += 1;
+                                                break;
+                                            } else {
+                                                cnt = 0;
+                                                break;
+                                            }
+                                        } // for
+                                        loop {
+                                            if cnt == 0 {
+                                                break;
+                                            }
+
+                                            content.pop_front();
+                                            cnt -= 1;
+                                        } // loop
+                                    }
                                 },
                                 Context::Expression => {
                                     tokens.push_back(Token::Expression(buf.trim().to_owned()));
