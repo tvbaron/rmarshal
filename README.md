@@ -1,33 +1,48 @@
 # rmarshal
 
-## Parameter Syntax
+## CLI Syntax
 
-    <syntax>    ::= <unit> | <unit> <syntax>
-    <unit>      ::= <command> | <modifier> <format> <path>
-    <command>   ::= "--check" | "--merge"
-    <modifier>  ::= "" | "--pretty" <modifier>
-    <format>    ::= "" | "--json" | "--toml" | "--yaml" | "--lua" | "--template"
-    <path>      ::= "" | <character> <path>
-    <character> ::= <letter> | <digit> | <symbol>
+    <syntax>        ::= "--help" | "--version" | <unit_seq>
+    <unit_seq>      ::= "" | <unit> <unit_seq>
+    <unit>          ::= <command> | <format> <modifier> <path> | <path>
+    <command>       ::= "--check" | "--concat" | "--copy" | "--merge" | "--pack" | "--unpack"
+    <format>        ::= "--json" | "--toml" | "--yaml" | "--lua" | "--template"
+    <modifier>      ::= "" | "--pretty" <modifier>
+    <path>          ::= <character> <character_seq>
+    <character_seq> ::= "" | <character> <character_seq>
+    <character>     ::= <letter> | <digit> | <symbol>
+
+## Template
+
+The engine recognizes certain tags in the provided template and converts them based on the following rules:
+
+    <% Lua code. %>
+    <%= Lua expression -- replaced with result. %>
+    <%# Comment -- not rendered. %>
+    <%% or %%> -- replaced with <% or %> respectively.
+
+Any leading whitespace are removed if the directive starts with `<%-`.
+
+Any trailing whitespace are removed if the directive ends with `-%>`.
 
 ## Examples
 
-### Convert JSON to YAML
+### Convert a JSON file to to a YAML file
 
-    rmarshal sample.json --yaml
+    rmarshal sample.json --copy out.yaml
 
-### Convert YAML to pretty JSON
+### Convert a YAML file to a pretty JSON file
 
-    rmarshal sample.yaml --pretty --json
+    rmarshal sample.yaml --copy --json --pretty out.json
 
 ### Merge multiple files into one
 
     rmarshal in1.json in2.toml in3.yaml --merge out.json
 
-### Process an object with a Lua script
+### Edit a file with a Lua script
 
-    rmarshal sample.json script.lua
+    rmarshal sample.json script.lua out.json
 
-### Transform a template with an object
+### Render a template
 
-    rmarshal sample.json --template report.templ
+    rmarshal sample.json --template report.templ out.txt
