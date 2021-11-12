@@ -19,6 +19,8 @@ The engine recognizes certain tags in the provided template and converts them ba
     <% Lua code. %>
     <%= Lua expression -- replaced with result. %>
     <%# Comment -- not rendered. %>
+    % A line of Lua code -- treated as <% line %>
+    %% replaced with % if first thing on a line and % processing is used
     <%% or %%> -- replaced with <% or %> respectively.
 
 Any leading whitespace are removed if the directive starts with `<%-`.
