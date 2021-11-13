@@ -27,6 +27,12 @@ const LONG_OPTION_PREFIX_LEN: usize = LONG_OPTION_PREFIX.len();
 const SHORT_OPTION_PREFIX: &str = "-";
 const SHORT_OPTION_PREFIX_LEN: usize = SHORT_OPTION_PREFIX.len();
 
+const HELP_CMD: &str = "--help";
+const VERSION_CMD: &str = "--version";
+
+const PROGRAM: &str = "rmarshal";
+const VERSION: &str = "0.1.0";
+
 /**
  * Exit codes:
  * - INTERNAL_ERROR(1)
@@ -39,6 +45,26 @@ fn main() {
     // (1ofx) Parse arguments.
     let mut units: VecDeque<Unit> = VecDeque::new();
     let args: Vec<String> = std::env::args().skip(1).collect();
+    match args.len() {
+        0 => {
+            eprintln!("wrong parameter");
+            std::process::exit(10);
+        },
+        1 => {
+            match args.first().unwrap().as_str() {
+                HELP_CMD => {
+                    println!("Usage: {} [INPUT...] COMMAND [OUTPUT...]", PROGRAM);
+                    std::process::exit(0);
+                },
+                VERSION_CMD => {
+                    println!("{} {}", PROGRAM, VERSION);
+                    std::process::exit(0);
+                },
+                _ => {},
+            }
+        },
+        _ => {},
+    } // match args.len()
     for arg in args {
         if arg == STDIO_PLACEHOLDER {
             if let Some(last_unit) = units.back_mut() {
@@ -168,10 +194,24 @@ fn main() {
                 FileFormat::Unknown => panic!("wtf"),
                 FileFormat::Json => {
                     let content =
+                        if f.path == "-" {
+                            let mut sb = String::new();
+                            let stdin = std::io::stdin();
+                            loop {
+                                match stdin.read_line(&mut sb) {
+                                    Ok(0) => break,
+                                    Ok(_) => {},
+                                    Err(e) => panic!("{}", e),
+                                }
+                            } // loop
+
+                            sb
+                        } else {
                             match std::fs::read_to_string(&f.path) {
                                 Ok(c) => c,
                                 Err(e) => panic!("{}", e),
-                            };
+                            }
+                        };
 
                     values.push_back(value::from_json_str(&content).unwrap());
                 },
