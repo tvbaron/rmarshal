@@ -1,0 +1,5 @@
+===begin===
+<% local data = ctx:get_input(1) %>
+My name is <%= data:get('name') %>.
+And my score is <%= data:get('score') %>.
+===end===
