@@ -6,13 +6,13 @@ describe 'copy YAML file to YAML file' do
       make_dir "#{get :tmp_dir}"
     end
 
-    # before_each do
-    #   clear_dir "#{get :tmp_dir}"
-    # end
+    before_each do
+      clear_dir "#{get :tmp_dir}"
+    end
 
-    # after_all do
-    #   clear_dir "#{get :tmp_dir}"
-    # end
+    after_all do
+      clear_dir "#{get :tmp_dir}"
+    end
 
     it 'copies' do
       exec_prog ["#{get :data_dir}/input01.yaml", "--copy", "#{get :tmp_dir}/out.yaml"]
