@@ -194,32 +194,46 @@ fn main() {
                 FileFormat::Unknown => panic!("wtf"),
                 FileFormat::Json => {
                     let content =
-                        if f.path == "-" {
-                            let mut sb = String::new();
-                            let stdin = std::io::stdin();
-                            loop {
-                                match stdin.read_line(&mut sb) {
-                                    Ok(0) => break,
-                                    Ok(_) => {},
+                            if f.path == "-" {
+                                let mut sb = String::new();
+                                let stdin = std::io::stdin();
+                                loop {
+                                    match stdin.read_line(&mut sb) {
+                                        Ok(0) => break,
+                                        Ok(_) => {},
+                                        Err(e) => panic!("{}", e),
+                                    }
+                                } // loop
+
+                                sb
+                            } else {
+                                match std::fs::read_to_string(&f.path) {
+                                    Ok(c) => c,
                                     Err(e) => panic!("{}", e),
                                 }
-                            } // loop
-
-                            sb
-                        } else {
-                            match std::fs::read_to_string(&f.path) {
-                                Ok(c) => c,
-                                Err(e) => panic!("{}", e),
-                            }
-                        };
+                            };
 
                     values.push_back(value::from_json_str(&content).unwrap());
                 },
                 FileFormat::Yaml => {
                     let content =
-                            match std::fs::read_to_string(&f.path) {
-                                Ok(c) => c,
-                                Err(e) => panic!("{}", e),
+                            if f.path == "-" {
+                                let mut sb = String::new();
+                                let stdin = std::io::stdin();
+                                loop {
+                                    match stdin.read_line(&mut sb) {
+                                        Ok(0) => break,
+                                        Ok(_) => {},
+                                        Err(e) => panic!("{}", e),
+                                    }
+                                } // loop
+
+                                sb
+                            } else {
+                                match std::fs::read_to_string(&f.path) {
+                                    Ok(c) => c,
+                                    Err(e) => panic!("{}", e),
+                                }
                             };
 
                     values.push_back(value::from_yaml_str(&content).unwrap());

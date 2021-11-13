@@ -1,7 +1,7 @@
 describe 'copy JSON file to JSON file' do
   before_all do
     basedir = "#{get :basedir}"
-    set :data_dir, "#{basedir}/copy"
+    set :data_dir, "#{basedir}/copy_json"
     set :tmp_dir, "#{basedir}/tmp"
     make_dir "#{get :tmp_dir}"
   end
@@ -28,7 +28,7 @@ end
 describe 'copy JSON file to JSON stdout' do
   before_all do
     basedir = "#{get :basedir}"
-    set :data_dir, "#{basedir}/copy"
+    set :data_dir, "#{basedir}/copy_json"
     set :tmp_dir, "#{basedir}/tmp"
     make_dir "#{get :tmp_dir}"
   end
@@ -57,7 +57,7 @@ end
 describe 'copy JSON stdin to JSON file' do
   before_all do
     basedir = "#{get :basedir}"
-    set :data_dir, "#{basedir}/copy"
+    set :data_dir, "#{basedir}/copy_json"
     set :tmp_dir, "#{basedir}/tmp"
     make_dir "#{get :tmp_dir}"
   end
@@ -88,7 +88,7 @@ end
 describe 'copy JSON stdin to JSON stdout' do
   before_all do
     basedir = "#{get :basedir}"
-    set :data_dir, "#{basedir}/copy"
+    set :data_dir, "#{basedir}/copy_json"
     set :tmp_dir, "#{basedir}/tmp"
     make_dir "#{get :tmp_dir}"
   end
