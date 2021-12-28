@@ -1,21 +1,24 @@
-describe 'copy YAML file to YAML file' do
-    before_all do
-      basedir = "#{get :basedir}"
-      set :data_dir, "#{basedir}/copy_yaml"
-      set :tmp_dir, "#{basedir}/tmp"
-      make_dir "#{get :tmp_dir}"
+require_relative '../app_helper'
+
+describe 'copy:yaml' do
+  context = AppHelper.new_context('copy_yaml')
+
+  before :all do
+    AppHelper.make_dir(AppHelper.tmpdir)
+  end
+
+  after :all do
+    AppHelper.clear_dir(AppHelper.tmpdir)
+  end
+
+  describe 'copy YAML file to YAML file' do
+    before :each do
+      AppHelper.clear_dir(AppHelper.tmpdir)
     end
 
-    before_each do
-      clear_dir "#{get :tmp_dir}"
-    end
-
-    after_all do
-      clear_dir "#{get :tmp_dir}"
-    end
-
-    it 'copies' do
-      exec_prog ["#{get :data_dir}/input01.yaml", "--copy", "#{get :tmp_dir}/out.yaml"]
-      assert { File.read("#{get :tmp_dir}/out.yaml") == File.read("#{get :data_dir}/expect01.yaml") }
+    it 'copies (default)' do
+      AppHelper.exec_prog ["#{context.datadir}/input01.yaml", "--copy", "#{AppHelper.tmpdir}/out.yaml"]
+      expect(File.read("#{AppHelper.tmpdir}/out.yaml")).to eq(File.read("#{context.datadir}/expect01.yaml"))
     end
   end
+end

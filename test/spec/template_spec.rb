@@ -1,21 +1,24 @@
-describe 'render a template to a file' do
-  before_all do
-    basedir = "#{get :basedir}"
-    set :data_dir, "#{basedir}/template"
-    set :tmp_dir, "#{basedir}/tmp"
-    make_dir "#{get :tmp_dir}"
+require_relative '../app_helper'
+
+describe 'template' do
+  context = AppHelper.new_context('template')
+
+  before :all do
+    AppHelper.make_dir(AppHelper.tmpdir)
   end
 
-  before_each do
-    clear_dir "#{get :tmp_dir}"
+  after :all do
+    AppHelper.clear_dir(AppHelper.tmpdir)
   end
 
-  after_all do
-    clear_dir "#{get :tmp_dir}"
-  end
+  describe 'render a template to a file' do
+    before :each do
+      AppHelper.clear_dir(AppHelper.tmpdir)
+    end
 
-  it 'renders' do
-    exec_prog ["#{get :data_dir}/input01.json", "--template", "#{get :data_dir}/template01.txt", "#{get :tmp_dir}/out.txt"]
-    assert { File.read("#{get :tmp_dir}/out.txt") == File.read("#{get :data_dir}/expect01.txt") }
+    it 'renders' do
+      AppHelper.exec_prog ["#{context.datadir}/input01.json", "--template", "#{context.datadir}/template01.txt", "#{AppHelper.tmpdir}/out.txt"]
+      expect(File.read("#{AppHelper.tmpdir}/out.txt")).to eq(File.read("#{context.datadir}/expect01.txt"))
+    end
   end
 end

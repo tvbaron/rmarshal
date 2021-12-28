@@ -1,119 +1,89 @@
-describe 'copy JSON file to JSON file' do
-  before_all do
-    basedir = "#{get :basedir}"
-    set :data_dir, "#{basedir}/copy_json"
-    set :tmp_dir, "#{basedir}/tmp"
-    make_dir "#{get :tmp_dir}"
+require_relative '../app_helper'
+
+describe 'copy:json' do
+  context = AppHelper.new_context('copy_json')
+
+  before :all do
+    AppHelper.make_dir(AppHelper.tmpdir)
   end
 
-  before_each do
-    clear_dir "#{get :tmp_dir}"
+  after :all do
+    AppHelper.clear_dir(AppHelper.tmpdir)
   end
 
-  after_all do
-    clear_dir "#{get :tmp_dir}"
+  describe 'copy JSON file to JSON file' do
+    before :each do
+      AppHelper.clear_dir(AppHelper.tmpdir)
+    end
+
+    it 'copies (default)' do
+      AppHelper.exec_prog ["#{context.datadir}/input01.json", "--copy", "#{AppHelper.tmpdir}/out.json"]
+      expect(File.read("#{AppHelper.tmpdir}/out.json")).to eq(File.read("#{context.datadir}/expect01.json"))
+    end
+
+    it 'copies (pretty)' do
+      AppHelper.exec_prog ["#{context.datadir}/input01.json", "--copy", "--json", "--pretty", "#{AppHelper.tmpdir}/out.json"]
+      expect(File.read("#{AppHelper.tmpdir}/out.json")).to eq(File.read("#{context.datadir}/expect02.json"))
+    end
   end
 
-  it 'copies (default)' do
-    exec_prog ["#{get :data_dir}/input01.json", "--copy", "#{get :tmp_dir}/out.json"]
-    assert { File.read("#{get :tmp_dir}/out.json") == File.read("#{get :data_dir}/expect01.json") }
+  describe 'copy JSON file to JSON stdout' do
+    before :each do
+      AppHelper.clear_dir(AppHelper.tmpdir)
+    end
+
+    it 'copies (default)' do
+      sb = StringIO.new
+      AppHelper.exec_prog ["#{context.datadir}/input01.json", "--copy", "--json", "-"], :stdout => sb
+      expect(sb.string).to eq(File.read("#{context.datadir}/expect01.json"))
+    end
+
+    it 'copies (pretty)' do
+      sb = StringIO.new
+      AppHelper.exec_prog ["#{context.datadir}/input01.json", "--copy", "--json", "--pretty", "-"], :stdout => sb
+      expect(sb.string).to eq(File.read("#{context.datadir}/expect02.json"))
+    end
   end
 
-  it 'copies (pretty)' do
-    exec_prog ["#{get :data_dir}/input01.json", "--copy", "--json", "--pretty", "#{get :tmp_dir}/out.json"]
-    assert { File.read("#{get :tmp_dir}/out.json") == File.read("#{get :data_dir}/expect02.json") }
-  end
-end
+  describe 'copy JSON stdin to JSON file' do
+    before :each do
+      AppHelper.clear_dir(AppHelper.tmpdir)
+    end
 
-describe 'copy JSON file to JSON stdout' do
-  before_all do
-    basedir = "#{get :basedir}"
-    set :data_dir, "#{basedir}/copy_json"
-    set :tmp_dir, "#{basedir}/tmp"
-    make_dir "#{get :tmp_dir}"
-  end
+    it 'copies (default)' do
+      sb = StringIO.new
+      sb.puts '{"name":"Althea"}'
+      AppHelper.exec_prog ["--json", "-", "--copy", "#{AppHelper.tmpdir}/out.json"], :stdin => sb
+      expect(File.read("#{AppHelper.tmpdir}/out.json")).to eq(File.read("#{context.datadir}/expect01.json"))
+    end
 
-  before_each do
-    clear_dir "#{get :tmp_dir}"
-  end
-
-  after_all do
-    clear_dir "#{get :tmp_dir}"
+    it 'copies (pretty)' do
+      sb = StringIO.new
+      sb.puts '{"name":"Althea"}'
+      AppHelper.exec_prog ["--json", "-", "--copy", "--json", "--pretty", "#{AppHelper.tmpdir}/out.json"], :stdin => sb
+      expect(File.read("#{AppHelper.tmpdir}/out.json")).to eq(File.read("#{context.datadir}/expect02.json"))
+    end
   end
 
-  it 'copies (default)' do
-    sb = StringIO.new
-    exec_prog ["#{get :data_dir}/input01.json", "--copy", "--json", "-"], :stdout => sb
-    assert { sb.string == File.read("#{get :data_dir}/expect01.json") }
-  end
+  describe 'copy JSON stdin to JSON stdout' do
+    before :each do
+      AppHelper.clear_dir(AppHelper.tmpdir)
+    end
 
-  it 'copies (pretty)' do
-    sb = StringIO.new
-    exec_prog ["#{get :data_dir}/input01.json", "--copy", "--json", "--pretty", "-"], :stdout => sb
-    assert { sb.string == File.read("#{get :data_dir}/expect02.json") }
-  end
-end
+    it 'copies (default)' do
+      si = StringIO.new
+      si.puts '{"name":"Althea"}'
+      so = StringIO.new
+      AppHelper.exec_prog ["--json", "-", "--copy", "--json", "-"], :stdin => si, :stdout => so
+      expect(so.string).to eq(File.read("#{context.datadir}/expect01.json"))
+    end
 
-describe 'copy JSON stdin to JSON file' do
-  before_all do
-    basedir = "#{get :basedir}"
-    set :data_dir, "#{basedir}/copy_json"
-    set :tmp_dir, "#{basedir}/tmp"
-    make_dir "#{get :tmp_dir}"
-  end
-
-  before_each do
-    clear_dir "#{get :tmp_dir}"
-  end
-
-  after_all do
-    clear_dir "#{get :tmp_dir}"
-  end
-
-  it 'copies (default)' do
-    sb = StringIO.new
-    sb.puts '{"name":"Althea"}'
-    exec_prog ["--json", "-", "--copy", "#{get :tmp_dir}/out.json"], :stdin => sb
-    assert { File.read("#{get :tmp_dir}/out.json") == File.read("#{get :data_dir}/expect01.json") }
-  end
-
-  it 'copies (pretty)' do
-    sb = StringIO.new
-    sb.puts '{"name":"Althea"}'
-    exec_prog ["--json", "-", "--copy", "--json", "--pretty", "#{get :tmp_dir}/out.json"], :stdin => sb
-    assert { File.read("#{get :tmp_dir}/out.json") == File.read("#{get :data_dir}/expect02.json") }
-  end
-end
-
-describe 'copy JSON stdin to JSON stdout' do
-  before_all do
-    basedir = "#{get :basedir}"
-    set :data_dir, "#{basedir}/copy_json"
-    set :tmp_dir, "#{basedir}/tmp"
-    make_dir "#{get :tmp_dir}"
-  end
-
-  before_each do
-    clear_dir "#{get :tmp_dir}"
-  end
-
-  after_all do
-    clear_dir "#{get :tmp_dir}"
-  end
-
-  it 'copies (default)' do
-    si = StringIO.new
-    si.puts '{"name":"Althea"}'
-    so = StringIO.new
-    exec_prog ["--json", "-", "--copy", "--json", "-"], :stdin => si, :stdout => so
-    assert { so.string == File.read("#{get :data_dir}/expect01.json") }
-  end
-
-  it 'copies (pretty)' do
-    si = StringIO.new
-    si.puts '{"name":"Althea"}'
-    so = StringIO.new
-    exec_prog ["--json", "-", "--copy", "--json", "--pretty", "-"], :stdin => si, :stdout => so
-    assert { so.string == File.read("#{get :data_dir}/expect02.json") }
+    it 'copies (pretty)' do
+      si = StringIO.new
+      si.puts '{"name":"Althea"}'
+      so = StringIO.new
+      AppHelper.exec_prog ["--json", "-", "--copy", "--json", "--pretty", "-"], :stdin => si, :stdout => so
+      expect(so.string).to eq(File.read("#{context.datadir}/expect02.json"))
+    end
   end
 end
