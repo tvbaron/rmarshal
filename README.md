@@ -1,5 +1,7 @@
 # rmarshal
 
+_rmarshal_ is a document processor.
+
 ## CLI Syntax
 
     <syntax>        ::= "--help" | "--version" | <unit_seq>
@@ -11,6 +13,12 @@
     <path>          ::= <character> <character_seq>
     <character_seq> ::= "" | <character> <character_seq>
     <character>     ::= <letter> | <digit> | <symbol>
+
+## Merge
+
+Merges multiple documents into one.
+
+    rmarshal INPUT --merge OUTPUT
 
 ## Template
 
