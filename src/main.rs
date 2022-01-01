@@ -44,14 +44,14 @@ const VERSION: &str = "0.1.0";
 fn main() {
     // (1ofx) Parse arguments.
     let mut units: VecDeque<Unit> = VecDeque::new();
-    let args: Vec<String> = std::env::args().skip(1).collect();
+    let mut args: VecDeque<String> = std::env::args().skip(1).collect();
     match args.len() {
         0 => {
             eprintln!("wrong parameter");
             std::process::exit(10);
         },
         1 => {
-            match args.first().unwrap().as_str() {
+            match args.front().unwrap().as_str() {
                 HELP_CMD => {
                     println!("Usage: {} [INPUT...] COMMAND [OUTPUT...]", PROGRAM);
                     std::process::exit(0);
@@ -64,20 +64,18 @@ fn main() {
             }
         },
         _ => {},
-    } // match args.len()
-    for arg in args {
-        if arg == STDIO_PLACEHOLDER {
-            if let Some(last_unit) = units.back_mut() {
-                if let Unit::File(f) = last_unit {
-                    if f.path.is_empty() {
-                        f.path = STDIO_PLACEHOLDER.to_owned();
-                        continue;
-                    }
-                }
-            }
+    }
 
-            units.push_back(Unit::File(UnitFile::for_path(STDIO_PLACEHOLDER)));
-        } else if arg.starts_with(LONG_OPTION_PREFIX) {
+    // Transforms the string-based arguments into a unit sequence.
+    loop {
+        if args.is_empty() {
+            break;
+        }
+
+        let arg = args.pop_front().unwrap();
+        if arg.starts_with(LONG_OPTION_PREFIX) {
+            // Long option.
+
             if arg.len() <= LONG_OPTION_PREFIX_LEN {
                 eprintln!("wrong parameter");
                 std::process::exit(10);
@@ -89,50 +87,84 @@ fn main() {
                 } else if option == "copy" {
                     units.push_back(Unit::Copy);
                 } else if option == "merge" {
-                    units.push_back(Unit::Merge);
+                    // With optional depth.
+                    let mut ucmd = UnitCommand::default();
+                    loop {
+                        let next_opt =
+                                match args.front() {
+                                    Some(o) => o,
+                                    None => break,
+                                };
+                        if next_opt == "--depth" || next_opt == "-d" {
+                            args.pop_front();
+                            let depth = args.pop_front().unwrap();
+                            let depth = depth.parse::<isize>().unwrap();
+                            ucmd.depth = Some(depth);
+                        } else {
+                            break;
+                        }
+                    } // loop
+                    units.push_back(Unit::Merge(ucmd));
                 } else if option == "lua" {
-                    units.push_back(Unit::Lua(UnitCommand::default()));
+                    // With mandatory path.
+                    let path =
+                            match args.pop_front() {
+                                Some(p) => p,
+                                None => {
+                                    eprintln!("missing lua path");
+                                    std::process::exit(10);
+                                },
+                            };
+                    let ucmd = UnitCommand::for_path(&path);
+                    units.push_back(Unit::Lua(ucmd));
                 } else if option == "template" {
-                    units.push_back(Unit::Template(UnitCommand::default()));
-                } else if option == "pretty" {
-                    if let Some(last_unit) = units.back_mut() {
-                        if let Unit::File(f) = last_unit {
-                            // The last unit is a file.
-                            if f.path.is_empty() {
-                                f.pretty = Some(true);
-                                continue;
-                            }
-                        }
-                    }
-
-                    let mut file = UnitFile::default();
-                    file.pretty = Some(true);
-                    units.push_back(Unit::File(file));
+                    // With mandatory path.
+                    let path =
+                            match args.pop_front() {
+                                Some(p) => p,
+                                None => {
+                                    eprintln!("missing template path");
+                                    std::process::exit(10);
+                                },
+                            };
+                    let ucmd = UnitCommand::for_path(&path);
+                    units.push_back(Unit::Template(ucmd));
                 } else {
-                    // Try a file format.
+                    // A file format -> input or output.
                     let format = FileFormat::for_str(option);
-                    if format.is_known() {
-                        if let Some(last_unit) = units.back_mut() {
-                            if let Unit::File(f) = last_unit {
-                                // The last unit is a file.
-                                if f.path.is_empty() {
-                                    f.format = format;
-                                    continue;
-                                }
-                            }
-                        }
-
-                        units.push_back(Unit::File(UnitFile::for_format(format)));
-                    } else {
+                    if !format.is_known() {
                         eprintln!("wrong parameter");
                         std::process::exit(10);
                     }
+
+                    let mut ufile = UnitFile::for_format(format);
+                    loop {
+                        let next_opt =
+                                match args.front() {
+                                    Some(o) => o,
+                                    None => {
+                                        eprintln!("missing path");
+                                        std::process::exit(10);
+                                    },
+                                };
+                        if next_opt == "--pretty" {
+                            args.pop_front();
+                            ufile.pretty = Some(true);
+                        } else {
+                            ufile.path = args.pop_front().unwrap();
+                            break;
+                        }
+                    } // loop
+
+                    units.push_back(Unit::File(ufile));
                 }
             } else {
                 eprintln!("wrong parameter");
                 std::process::exit(10);
             }
         } else if arg.starts_with(SHORT_OPTION_PREFIX) {
+            // Short option.
+
             if arg.len() != (SHORT_OPTION_PREFIX_LEN + 1) {
                 eprintln!("wrong parameter");
                 std::process::exit(10);
@@ -140,41 +172,22 @@ fn main() {
 
             if let Some(_option) = arg.get(SHORT_OPTION_PREFIX_LEN..) {
                 eprintln!("not implemented yet");
+                std::process::exit(10);
             } else {
                 eprintln!("wrong parameter");
                 std::process::exit(10);
             }
         } else {
             // The argment is a path.
-            if let Some(last_unit) = units.back_mut() {
-                match last_unit {
-                    Unit::File(f) => {
-                        // The last unit is a file.
-                        if f.path.is_empty() {
-                            // The file is not complete.
-                            f.path = arg;
-                            continue;
-                        }
-                    },
-                    Unit::Lua(c) | Unit::Template(c) => {
-                        // The last unit is a lua/template command.
-                        if let None = c.path {
-                            c.path = Some(arg);
-                            continue;
-                        }
-                    },
-                    _ => {},
-                } // match
-            }
-
             let lc_path = arg.to_lowercase();
             if lc_path.ends_with(LUA_PATH_SUFFIX) {
                 units.push_back(Unit::Lua(UnitCommand::for_path(&arg)));
             } else {
+                // Input or output.
                 units.push_back(Unit::File(UnitFile::for_path(&arg)));
             }
         }
-    } // for
+    } // loop
 
     // Debug.
     for (unit_idx, unit) in units.iter_mut().enumerate() {
@@ -194,7 +207,7 @@ fn main() {
                 FileFormat::Unknown => panic!("wtf"),
                 FileFormat::Json => {
                     let content =
-                            if f.path == "-" {
+                            if f.path == STDIO_PLACEHOLDER {
                                 let mut sb = String::new();
                                 let stdin = std::io::stdin();
                                 loop {
@@ -217,7 +230,7 @@ fn main() {
                 },
                 FileFormat::Yaml => {
                     let content =
-                            if f.path == "-" {
+                            if f.path == STDIO_PLACEHOLDER {
                                 let mut sb = String::new();
                                 let stdin = std::io::stdin();
                                 loop {
@@ -261,50 +274,24 @@ fn main() {
             Unit::Check => {
                 std::process::exit(0);
             },
-            Unit::Merge => {
-                let lua = rlua::Lua::new();
-                let input_values = values.clone();
-                values.clear();
-                let output_value =
-                        lua.context(|lua_ctx| {
-                            match lua_ctx.load(command::LUA_PRELUDE).exec() {
-                                Ok(_) => {},
-                                Err(e) => panic!("{}", e),
-                            } // match
+            Unit::Merge(c) => {
+                let depth =
+                        match c.depth {
+                            Some(d) => d,
+                            None => -1,
+                        };
+                loop {
+                    match values.len() {
+                        0 => panic!("cannot merge without any input"),
+                        1 => break,
+                        _ => {},
+                    }
 
-                            let globals = lua_ctx.globals();
-
-                            let ctx: rlua::Table =
-                                    match globals.get("ctx") {
-                                        Ok(v) => v,
-                                        Err(e) => panic!("{}", e),
-                                    };
-
-                            for (_, value) in input_values.iter().enumerate() {
-                                let mut sb = String::new();
-                                sb.push_str("table.insert(ctx.inputs,");
-                                sb.push_str(&value::to_lua_string(&value));
-                                sb.push_str(")");
-                                println!("{}", sb);
-                                lua_ctx.load(&sb).exec().unwrap();
-                            } // for
-
-                            lua_ctx.load("ctx:set_output(ctx:merge_inputs())").exec().unwrap();
-
-                            let output: rlua::Value =
-                                    match ctx.get("output") {
-                                        Ok(v) => v,
-                                        Err(e) => panic!("{}", e),
-                                    };
-
-                            match output {
-                                rlua::Value::Table(t) => Some(value::from_lua_table(t.clone())),
-                                _ => None,
-                            }
-                        });
-                if let Some(v) = output_value {
-                    values.push_back(v);
-                }
+                    let left = values.pop_front().unwrap();
+                    let right = values.pop_front().unwrap();
+                    let res = value::merge_values(&left, &right, depth);
+                    values.push_front(res);
+                } // loop
             },
             Unit::Lua(c) => {
                 let lua_content =
@@ -428,7 +415,7 @@ fn main() {
                 FileFormat::Unknown => {
                     let v = values.pop_front().unwrap();
                     if let value::Value::String(s) = v {
-                        if f.path == "-" {
+                        if f.path == STDIO_PLACEHOLDER {
                             print!("{}", s);
                         } else {
                             match std::fs::write(f.path, s) {
@@ -454,7 +441,7 @@ fn main() {
                                 },
                             };
                     output_content.push('\n');
-                    if f.path == "-" {
+                    if f.path == STDIO_PLACEHOLDER {
                         print!("{}", output_content);
                     } else {
                         match std::fs::write(f.path, output_content) {
@@ -471,7 +458,7 @@ fn main() {
                                 Err(e) => panic!("{}", e),
                             };
                     output_content.push('\n');
-                    if f.path == "-" {
+                    if f.path == STDIO_PLACEHOLDER {
                         print!("{}", output_content);
                     } else {
                         match std::fs::write(f.path, output_content) {

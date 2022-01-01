@@ -81,25 +81,37 @@ impl UnitFile {
 
 #[derive(Debug, Default)]
 pub struct UnitCommand {
+    // For Lua and Template commands.
     pub path: Option<String>,
-    // pub depth: Option<usize>,
+    // For merge command.
+    pub depth: Option<isize>,
 }
 
 impl UnitCommand {
     pub fn for_path(path: &str) -> Self {
         UnitCommand {
             path: Some(path.to_owned()),
+            depth: None,
         }
     }
+
+    // pub fn for_depth(depth: isize) -> Self {
+    //     UnitCommand {
+    //         path: None,
+    //         depth: Some(depth),
+    //     }
+    // }
 }
 
 // Parameter Unit.
 #[derive(Debug)]
 pub enum Unit {
+    // Input or output:
     File(UnitFile),
+    // Commands:
     Check,
     Copy,
-    Merge,
+    Merge(UnitCommand),
     Lua(UnitCommand),
     Template(UnitCommand),
 }

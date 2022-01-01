@@ -1,4 +1,5 @@
 use indexmap::IndexMap;
+use indexmap::IndexSet;
 use rlua::{
     String as LuaString,
     Table as LuaTable,
@@ -37,6 +38,61 @@ impl Serialize for Value {
                 s.end()
             },
         }
+    }
+}
+
+// Creates a new Value by merging 2 given Values.
+// The depth is meant for Array and Object Values. A negative value indicates an infinite depth.
+pub fn merge_values(left: &Value, right: &Value, depth: isize) -> Value {
+    if depth == 0 {
+        return right.clone();
+    }
+
+    let dummy = Value::Nil;
+    let depth = depth - 1;
+
+    match left {
+        // Value::Array(s) => {
+        //     match other {
+        //         Value::Array(o) => {
+
+        //         },
+        //         _ => panic!("wrong value (other)"),
+        //     }
+        // },
+        Value::Object(l) => match right {
+            Value::Object(r) => {
+                // Both Values are Object.
+                let mut s = IndexMap::new();
+
+                let mut keys = IndexSet::new();
+                keys.extend(l.keys());
+                keys.extend(r.keys());
+                for key in keys.iter() {
+                    let (has_left, left_val) =
+                            match l.get(*key) {
+                                Some(v) => (true, v),
+                                None => (false, &dummy),
+                            };
+                    let (has_right, right_val) =
+                            match r.get(*key) {
+                                Some(v) => (true, v),
+                                None => (false, &dummy),
+                            };
+                    if has_left && has_right {
+                        s.insert((*key).clone(), merge_values(left_val, right_val, depth));
+                    } else if has_left {
+                        s.insert((*key).clone(), left_val.clone());
+                    } else if has_right {
+                        s.insert((*key).clone(), right_val.clone());
+                    }
+                } // fof
+
+                Value::Object(s)
+            },
+            _ => right.clone(),
+        },
+        _ => right.clone(),
     }
 }
 

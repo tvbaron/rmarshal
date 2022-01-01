@@ -1,0 +1,13 @@
+{
+  "alfa": "hey",
+  "charlie": "hi",
+  "delta": {
+    "echo": "e2",
+    "foxtrot": "f2",
+    "hotel": {
+      "india": "i2",
+      "juliet": "l2"
+    }
+  },
+  "bravo": "yo"
+}
