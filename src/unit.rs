@@ -113,6 +113,8 @@ pub enum Unit {
     Concat,
     Copy,
     Merge(UnitCommand),
+    Pack,
+    Unpack,
     Lua(UnitCommand),
     Template(UnitCommand),
 }

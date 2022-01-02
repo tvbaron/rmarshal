@@ -107,6 +107,10 @@ fn main() {
                         }
                     } // loop
                     units.push_back(Unit::Merge(ucmd));
+                } else if option == "pack" {
+                    units.push_back(Unit::Pack);
+                } else if option == "unpack" {
+                    units.push_back(Unit::Unpack);
                 } else if option == "lua" {
                     // With mandatory path.
                     let path =
@@ -318,6 +322,41 @@ fn main() {
                     let right = values.pop_front().unwrap();
                     let res = value::merge_values(&left, &right, depth);
                     values.push_front(res);
+                } // loop
+            },
+            Unit::Pack => {
+                let mut res = Vec::new();
+                loop {
+                    if values.is_empty() {
+                        break;
+                    }
+
+                    let val = values.pop_front().unwrap();
+                    res.push(val);
+                } // loop
+
+                values.push_back(value::Value::Array(res));
+            },
+            Unit::Unpack => {
+                let mut len = values.len();
+                loop {
+                    if len == 0 {
+                        break;
+                    }
+
+                    len -= 1;
+                    let val = values.pop_front().unwrap();
+                    match val {
+                        value::Value::Array(l) => {
+                            for e in l.iter() {
+                                values.push_back(e.clone());
+                            } // for
+                        },
+                        _ => {
+                            eprintln!("wrong parameter");
+                            std::process::exit(21);
+                        },
+                    }
                 } // loop
             },
             Unit::Lua(c) => {
