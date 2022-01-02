@@ -1,0 +1,39 @@
+[
+  2,
+  "bravo",
+  {
+    "charlie": [
+      "c1"
+    ],
+    "delta": [
+      "d2"
+    ]
+  },
+  {
+    "echo": [
+      4,
+      "golf",
+      {
+        "hotel": [
+          "h1"
+        ],
+        "india": [
+          "i2"
+        ]
+      },
+      {
+        "juliet": [
+          5,
+          "mike",
+          {
+            "oscar": [
+              "o2"
+            ]
+          }
+        ]
+      },
+      "quebec"
+    ]
+  },
+  "papa"
+]

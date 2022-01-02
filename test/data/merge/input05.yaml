@@ -1,0 +1,18 @@
+---
+- 1
+- alfa
+- charlie:
+    - c1
+- echo:
+    - 3
+    - foxtrot
+    - hotel:
+        - h1
+    - juliet:
+        - 4
+        - kilo
+        - november:
+            - n1
+        - romeo
+    - quebec
+- papa

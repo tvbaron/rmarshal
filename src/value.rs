@@ -52,14 +52,48 @@ pub fn merge_values(left: &Value, right: &Value, depth: isize) -> Value {
     let depth = depth - 1;
 
     match left {
-        // Value::Array(s) => {
-        //     match other {
-        //         Value::Array(o) => {
+        Value::Array(l) => match right {
+            Value::Array(r) => {
+                // Both Values are Array.
+                let mut s = Vec::new();
 
-        //         },
-        //         _ => panic!("wrong value (other)"),
-        //     }
-        // },
+                let left_len = l.len();
+                let right_len = r.len();
+                let len =
+                        if left_len < right_len {
+                            right_len
+                        } else {
+                            left_len
+                        };
+                let mut idx = 0;
+                while idx < len {
+                    let (has_left, left_val) =
+                            if idx < left_len {
+                                (true, l.get(idx).unwrap())
+                            } else {
+                                (false, &dummy)
+                            };
+                    let (has_right, right_val) =
+                            if idx < right_len {
+                                (true, r.get(idx).unwrap())
+                            } else {
+                                (false, &dummy)
+                            };
+                    if has_left && has_right {
+                        s.push(merge_values(left_val, right_val, depth))
+                    } else if has_left {
+                        s.push(left_val.clone());
+                    } else if has_right {
+                        s.push(right_val.clone());
+                    }
+
+                    idx += 1;
+                } // while
+
+                Value::Array(s)
+            },
+            _ => right.clone(),
+        },
         Value::Object(l) => match right {
             Value::Object(r) => {
                 // Both Values are Object.
