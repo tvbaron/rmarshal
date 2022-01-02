@@ -110,6 +110,7 @@ pub enum Unit {
     File(UnitFile),
     // Commands:
     Check,
+    Concat,
     Copy,
     Merge(UnitCommand),
     Lua(UnitCommand),

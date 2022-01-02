@@ -4,21 +4,48 @@ _rmarshal_ is a document processor.
 
 ## CLI Syntax
 
-    <syntax>        ::= "--help" | "--version" | <unit_seq>
-    <unit_seq>      ::= "" | <unit> <unit_seq>
-    <unit>          ::= <command> | <format> <modifier> <path> | <path>
-    <command>       ::= "--check" | "--concat" | "--copy" | "--merge" | "--pack" | "--unpack"
-    <format>        ::= "--json" | "--toml" | "--yaml" | "--lua" | "--template"
-    <modifier>      ::= "" | "--pretty" <modifier>
-    <path>          ::= <character> <character_seq>
-    <character_seq> ::= "" | <character> <character_seq>
-    <character>     ::= <letter> | <digit> | <symbol>
+    <syntax>            ::= "--help" | "--version" | <pipeline>
+    <pipeline>          ::= <unit> | <pipeline> <unit>
+    <unit>              ::= <command> | <format> <path> | <path>
+    <command>           ::= "--check"
+                          | "--concat"
+                          | "--copy"
+                          | "--merge" <merge_modifiers>
+                          | "--pack"
+                          | "--unpack"
+                          | "--lua" <path>
+                          | "--template" <path>
+    <merge_modifiers>   ::= ""
+                          | "--depth" <signed_integer> <merge_modifiers>
+    <format>            ::= "--json" <json_modifiers>
+                          | "--toml"
+                          | "--yaml"
+    <json_modifiers>    ::= ""
+                          | "--pretty" <json_modifiers>
+    <path>              ::= <character> | <character> <text>
+    <character>         ::= <letter> | <digit> | <symbol>
+    <signed_integer>    ::= "-" <integer> | <integer>
+    <integer>           ::= <digit> | <integer> <digit>
+
+## Concat
+
+Creates an array-based document by concatenating multiple array-based documents.
+
+    rmarshal INPUT... --concat OUTPUT
 
 ## Merge
 
 Merges multiple documents into one.
 
-    rmarshal INPUT --merge OUTPUT
+    rmarshal INPUT... --merge [--depth DEPTH] OUTPUT
+
+The depth is meant for array and object values. It indicates the merging depth.
+
+For example:
+- a depth of value 0 will always applied the second operand.
+- a depth of value 1 will merge only the first level of an array or a object value.
+
+No depth option or a negative value indicates an infinite depth.
 
 ## Template
 
@@ -51,7 +78,7 @@ Any trailing whitespace are removed if the directive ends with `-%>`.
 
 ### Edit a file with a Lua script
 
-    rmarshal sample.json script.lua out.json
+    rmarshal sample.json --lua script.lua out.json
 
 ### Render a template
 

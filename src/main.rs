@@ -86,6 +86,8 @@ fn main() {
                     units.push_back(Unit::Check);
                 } else if option == "copy" {
                     units.push_back(Unit::Copy);
+                } else if option == "concat" {
+                    units.push_back(Unit::Concat);
                 } else if option == "merge" {
                     // With optional depth.
                     let mut ucmd = UnitCommand::default();
@@ -269,9 +271,34 @@ fn main() {
                 };
         match unit {
             Unit::Copy => {
+                // No treatment necessary since every input will be written afterwards.
                 break;
             },
+            Unit::Concat => {
+                let mut res = Vec::new();
+                loop {
+                    if values.is_empty() {
+                        break;
+                    }
+
+                    let val = values.pop_front().unwrap();
+                    match val {
+                        value::Value::Array(l) => {
+                            for e in l.iter() {
+                                res.push(e.clone());
+                            } // for
+                        },
+                        _ => {
+                            eprintln!("wrong parameter");
+                            std::process::exit(21);
+                        },
+                    }
+                } // loop
+
+                values.push_back(value::Value::Array(res));
+            },
             Unit::Check => {
+                // Nothing else to do since every input has been read and checked already.
                 std::process::exit(0);
             },
             Unit::Merge(c) => {
