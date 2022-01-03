@@ -94,8 +94,8 @@ Object.__index = Object
 -- @return [Object]
 function Object:new(init)
     local obj = {
-        keys = {},
-        values = {},
+        keys = {},   -- Array of keys (for insertion order).
+        values = {}, -- Map of key-value pairs.
     }
     if (type(init) == 'table') then
         for _, tuple in ipairs(init) do
@@ -104,7 +104,9 @@ function Object:new(init)
                 error('wrong key format')
             end
 
-            table.insert(obj.keys, k)
+            if obj.values[k] == nil then
+                table.insert(obj.keys, k)
+            end
             obj.values[k] = tuple[2]
         end
     end
@@ -207,7 +209,7 @@ Context.__index = Context
 function Context:new(ctx)
     local ctx = {
         inputs = {},
-        output = nil,
+        outputs = {},
     }
     setmetatable(ctx, self)
     return ctx
@@ -230,7 +232,7 @@ function Context:merge_inputs()
 end
 
 function Context:set_output(output)
-    self.output = output
+    table.insert(self.outputs, output)
 end
 
 ctx = Context:new()

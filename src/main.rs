@@ -100,7 +100,10 @@ fn main() {
         }
 
         let arg = args.pop_front().unwrap();
-        if arg.starts_with(LONG_OPTION_PREFIX) {
+        if arg == STDIO_PLACEHOLDER {
+            // For Lua and Template.
+            units.push_back(Unit::File(UnitFile::for_path(STDIO_PLACEHOLDER)));
+        } else if arg.starts_with(LONG_OPTION_PREFIX) {
             // Long option.
 
             if arg.len() <= LONG_OPTION_PREFIX_LEN {
@@ -386,7 +389,7 @@ fn main() {
                             match lua_ctx.load(command::LUA_PRELUDE).exec() {
                                 Ok(_) => {},
                                 Err(e) => panic!("{}", e),
-                            } // match
+                            }
 
                             let globals = lua_ctx.globals();
 
@@ -408,21 +411,18 @@ fn main() {
                             match lua_ctx.load(&lua_content).exec() {
                                 Ok(_) => {},
                                 Err(e) => panic!("{}", e),
-                            } // match
+                            }
 
-                            let output: rlua::Value =
-                                    match ctx.get("output") {
+                            let outputs: rlua::Table =
+                                    match ctx.get("outputs") {
                                         Ok(v) => v,
                                         Err(e) => panic!("{}", e),
                                     };
 
-                            match output {
-                                rlua::Value::Table(t) => Some(value::from_lua_table(t.clone())),
-                                _ => None,
-                            }
+                            value::from_lua_table(outputs)
                         });
-                if let Some(v) = output_value {
-                    values.push_back(v);
+                if let value::Value::Array(vals) = output_value {
+                    values.extend(vals);
                 }
             },
             Unit::Template(c) => {
@@ -436,7 +436,7 @@ fn main() {
                             match lua_ctx.load(command::LUA_PRELUDE).exec() {
                                 Ok(_) => {},
                                 Err(e) => panic!("{}", e),
-                            } // match
+                            }
 
                             let globals = lua_ctx.globals();
 
@@ -458,15 +458,15 @@ fn main() {
                             match lua_ctx.load(&template.content).exec() {
                                 Ok(_) => {},
                                 Err(e) => panic!("{}", e),
-                            } // match
+                            }
 
-                            let output: rlua::Value =
-                                    match ctx.get("output") {
+                            let outputs: rlua::Table =
+                                    match ctx.get("outputs") {
                                         Ok(v) => v,
                                         Err(e) => panic!("{}", e),
                                     };
 
-                            match output {
+                            match outputs.get(1).unwrap() {
                                 rlua::Value::Table(t) => Some(value::from_processed_template(t.clone())),
                                 _ => None,
                             }

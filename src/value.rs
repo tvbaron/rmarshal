@@ -143,7 +143,7 @@ fn is_lua_table_array(table: LuaTable) -> bool {
                 }
             },
             _ => return false,
-        } // match
+        }
         idx += 1;
     } // for
 
@@ -182,7 +182,7 @@ pub fn from_lua_table(table: LuaTable) -> Value {
                         a.push(from_lua_table(t.clone()));
                     },
                     _ => panic!("wrong array element"),
-                } // match
+                }
             } // for
 
             Value::Array(a)
@@ -245,7 +245,7 @@ pub fn from_lua_table(table: LuaTable) -> Value {
                         a.push(from_lua_table(t.clone()));
                     },
                     _ => panic!("wrong array element"),
-                } // match
+                }
             } // for
 
             Value::Array(a)
@@ -319,7 +319,7 @@ pub fn from_processed_template(table: LuaTable) -> String {
                 }
             },
             _ => panic!("wtf"),
-        } // match
+        }
     } // for
 
     res
