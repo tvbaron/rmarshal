@@ -180,7 +180,13 @@ fn main() {
                                         std::process::exit(10);
                                     },
                                 };
-                        if next_opt == "--pretty" {
+                        if next_opt == "--end" {
+                            args.pop_front();
+                            ufile.end = Some(true);
+                        } else if next_opt == "--fix" {
+                            args.pop_front();
+                            ufile.fix = Some(true);
+                        } else if next_opt == "--pretty" {
                             args.pop_front();
                             ufile.pretty = Some(true);
                         } else {
@@ -525,11 +531,14 @@ fn main() {
                 },
                 FileFormat::Yaml => {
                     let v = values.pop_front().unwrap();
-                    let output_content =
+                    let mut output_content =
                             match serde_yaml::to_string(&v) {
                                 Ok(c) => c,
                                 Err(e) => panic!("{}", e),
                             };
+                    if let Some(true) = f.end {
+                        output_content.push_str("...\n");
+                    }
                     if f.path == STDIO_PLACEHOLDER {
                         print!("{}", output_content);
                     } else {
@@ -541,7 +550,12 @@ fn main() {
                 },
                 FileFormat::Toml => {
                     let v = values.pop_front().unwrap();
-                    let v = value::fix_toml(&v);
+                    let v =
+                            if let Some(true) = f.fix {
+                                value::fix_toml(&v)
+                            } else {
+                                v
+                            };
                     let output_content =
                             match toml::to_string(&v) {
                                 Ok(c) => c,

@@ -50,6 +50,8 @@ impl FileFormat {
 pub struct UnitFile {
     pub path: String,
     pub format: FileFormat,
+    pub end: Option<bool>,
+    pub fix: Option<bool>,
     pub pretty: Option<bool>,
 }
 
@@ -58,6 +60,8 @@ impl UnitFile {
         UnitFile {
             path: path.to_owned(),
             format: FileFormat::for_path(path),
+            end: None,
+            fix: None,
             pretty: None,
         }
     }
@@ -74,6 +78,8 @@ impl UnitFile {
         UnitFile {
             path: String::new(),
             format,
+            end: None,
+            fix: None,
             pretty: None,
         }
     }

@@ -18,10 +18,14 @@ _rmarshal_ is a document processor.
     <merge_modifiers>   ::= ""
                           | "--depth" <signed_integer> <merge_modifiers>
     <format>            ::= "--json" <json_modifiers>
-                          | "--toml"
-                          | "--yaml"
+                          | "--toml" <toml_modifiers>
+                          | "--yaml" <yaml_modifiers>
     <json_modifiers>    ::= ""
                           | "--pretty" <json_modifiers>
+    <toml_modifiers>    ::= ""
+                          | "--fix" <toml_modifiers>
+    <yaml_modifiers>    ::= ""
+                          | "--end" <yaml_modifiers>
     <path>              ::= <character> | <character> <text>
     <character>         ::= <letter> | <digit> | <symbol>
     <signed_integer>    ::= "-" <integer> | <integer>
