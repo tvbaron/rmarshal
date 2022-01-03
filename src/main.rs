@@ -3,6 +3,7 @@ extern crate rlua;
 extern crate serde;
 extern crate serde_json;
 extern crate serde_yaml;
+extern crate toml;
 
 use std::collections::VecDeque;
 
@@ -32,6 +33,32 @@ const VERSION_CMD: &str = "--version";
 
 const PROGRAM: &str = "rmarshal";
 const VERSION: &str = "0.1.0";
+
+// Reads the content of a file.
+fn read_content(path: &String) -> Result<String, std::io::Error> {
+    if path == STDIO_PLACEHOLDER {
+        // Read from STDIN instead.
+        let mut sb = String::new();
+        let stdin = std::io::stdin();
+        loop {
+            match stdin.read_line(&mut sb) {
+                Ok(0) => break,
+                Ok(_) => {},
+                Err(e) => return Err(e),
+            }
+        } // loop
+
+        Ok(sb)
+    } else {
+        let content =
+                match std::fs::read_to_string(path) {
+                    Ok(c) => c,
+                    Err(e) => return Err(e),
+                };
+
+        Ok(content)
+    }
+}
 
 /**
  * Exit codes:
@@ -213,51 +240,31 @@ fn main() {
                 FileFormat::Unknown => panic!("wtf"),
                 FileFormat::Json => {
                     let content =
-                            if f.path == STDIO_PLACEHOLDER {
-                                let mut sb = String::new();
-                                let stdin = std::io::stdin();
-                                loop {
-                                    match stdin.read_line(&mut sb) {
-                                        Ok(0) => break,
-                                        Ok(_) => {},
-                                        Err(e) => panic!("{}", e),
-                                    }
-                                } // loop
-
-                                sb
-                            } else {
-                                match std::fs::read_to_string(&f.path) {
-                                    Ok(c) => c,
-                                    Err(e) => panic!("{}", e),
-                                }
+                            match read_content(&f.path) {
+                                Ok(c) => c,
+                                Err(e) => panic!("{}", e),
                             };
 
                     values.push_back(value::from_json_str(&content).unwrap());
                 },
                 FileFormat::Yaml => {
                     let content =
-                            if f.path == STDIO_PLACEHOLDER {
-                                let mut sb = String::new();
-                                let stdin = std::io::stdin();
-                                loop {
-                                    match stdin.read_line(&mut sb) {
-                                        Ok(0) => break,
-                                        Ok(_) => {},
-                                        Err(e) => panic!("{}", e),
-                                    }
-                                } // loop
-
-                                sb
-                            } else {
-                                match std::fs::read_to_string(&f.path) {
-                                    Ok(c) => c,
-                                    Err(e) => panic!("{}", e),
-                                }
+                            match read_content(&f.path) {
+                                Ok(c) => c,
+                                Err(e) => panic!("{}", e),
                             };
 
                     values.push_back(value::from_yaml_str(&content).unwrap());
                 },
-                _ => panic!("not implemented"),
+                FileFormat::Toml => {
+                    let content =
+                            match read_content(&f.path) {
+                                Ok(c) => c,
+                                Err(e) => panic!("{}", e),
+                            };
+
+                    values.push_back(value::from_toml_str(&content).unwrap());
+                },
             },
             _ => {
                 units.push_front(unit);
@@ -518,12 +525,11 @@ fn main() {
                 },
                 FileFormat::Yaml => {
                     let v = values.pop_front().unwrap();
-                    let mut output_content =
+                    let output_content =
                             match serde_yaml::to_string(&v) {
                                 Ok(c) => c,
                                 Err(e) => panic!("{}", e),
                             };
-                    output_content.push('\n');
                     if f.path == STDIO_PLACEHOLDER {
                         print!("{}", output_content);
                     } else {
@@ -533,7 +539,23 @@ fn main() {
                         }
                     }
                 },
-                _ => panic!("not implemented"),
+                FileFormat::Toml => {
+                    let v = values.pop_front().unwrap();
+                    let v = value::fix_toml(&v);
+                    let output_content =
+                            match toml::to_string(&v) {
+                                Ok(c) => c,
+                                Err(e) => panic!("{}", e),
+                            };
+                    if f.path == STDIO_PLACEHOLDER {
+                        print!("{}", output_content);
+                    } else {
+                        match std::fs::write(f.path, output_content) {
+                            Ok(_) => {},
+                            Err(e) => panic!("{}", e),
+                        }
+                    }
+                },
             },
             _ => {
                 units.push_front(unit);

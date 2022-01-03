@@ -41,7 +41,10 @@ describe 'copy:yaml' do
 
     it 'copies' do
       sb = StringIO.new
-      sb.puts '{"name":"Althea"}'
+      sb.puts <<EOS
+---
+name: Althea
+EOS
       AppHelper.exec_prog ["--yaml", "-", "--copy", "#{AppHelper.tmpdir}/out.yaml"], :stdin => sb
       expect(File.read("#{AppHelper.tmpdir}/out.yaml")).to eq(File.read("#{context.datadir}/expect01.yaml"))
     end
@@ -54,7 +57,10 @@ describe 'copy:yaml' do
 
     it 'copies' do
       si = StringIO.new
-      si.puts '{"name":"Althea"}'
+      si.puts <<EOS
+---
+name: Althea
+EOS
       so = StringIO.new
       AppHelper.exec_prog ["--yaml", "-", "--copy", "--yaml", "-"], :stdin => si, :stdout => so
       expect(so.string).to eq(File.read("#{context.datadir}/expect01.yaml"))

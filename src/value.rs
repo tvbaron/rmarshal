@@ -8,6 +8,7 @@ use rlua::{
 use serde::{Serialize, Serializer, ser::SerializeMap};
 use serde_json::{Value as JsonValue};
 use serde_yaml::{Value as YamlValue};
+use toml::{Value as TomlValue};
 
 #[derive(Clone, Eq, PartialEq)]
 pub enum Value {
@@ -455,4 +456,75 @@ pub fn from_yaml_str(content: &str) -> Result<Value, ()> {
             };
 
     Ok(from_yaml_value(&yaml_val))
+}
+
+// Converts a given TOML value into an internal Value.
+fn from_toml_value(value: &TomlValue) -> Value {
+    match value {
+        TomlValue::Boolean(v) => Value::Boolean(*v),
+        TomlValue::Integer(v) => Value::Integer(*v),
+        TomlValue::Float(_) => Value::Nil,
+        TomlValue::Datetime(_) => Value::Nil,
+        TomlValue::String(v) => Value::String(v.clone()),
+        TomlValue::Array(a) => {
+            let mut new_array = Vec::new();
+            for v in a {
+                new_array.push(from_toml_value(v));
+            } // for
+
+            Value::Array(new_array)
+        },
+        TomlValue::Table(o) => {
+            let mut new_obj = IndexMap::new();
+            for (k, v) in o {
+                new_obj.insert(k.clone(), from_toml_value(v));
+            } // for
+
+            Value::Object(new_obj)
+        },
+    }
+}
+
+// Converts a given TOML string representation into an internal Value.
+pub fn from_toml_str(content: &str) -> Result<Value, ()> {
+    let toml_val =
+            match toml::from_str(content) {
+                Ok(v) => v,
+                Err(_) => return Err(()),
+            };
+
+    Ok(from_toml_value(&toml_val))
+}
+
+// Reorders object content.
+// Puts non-array and non-object elements first, then puts array elements and finally puts object elements.
+pub fn fix_toml(value: &Value) -> Value {
+    if let Value::Object(o) = value {
+        let mut new_object = IndexMap::new();
+        let mut array_vals = Vec::new();
+        let mut object_vals = Vec::new();
+        for (k, v) in o {
+            match v {
+                Value::Array(_) => {
+                    array_vals.push((k.clone(), fix_toml(v)));
+                },
+                Value::Object(_) => {
+                    object_vals.push((k.clone(), fix_toml(v)));
+                },
+                _ => {
+                    new_object.insert(k.clone(), fix_toml(v));
+                },
+            }
+        } // for
+        for (k, v) in array_vals {
+            new_object.insert(k, v);
+        } // for
+        for (k, v) in object_vals {
+            new_object.insert(k, v);
+        } // for
+
+        Value::Object(new_object)
+    } else {
+        value.clone()
+    }
 }
