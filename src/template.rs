@@ -300,6 +300,7 @@ fn parse_template(content: &str) -> Result<String, ()> {
 
         match token {
             Token::Expression(e) => {
+                #[cfg(feature = "debug")]
                 eprintln!("[Expression] '{}'", e);
 
                 res.push_str("table.insert(_sb, ");
@@ -307,12 +308,14 @@ fn parse_template(content: &str) -> Result<String, ()> {
                 res.push_str(")\n");
             },
             Token::Statement(s) => {
+                #[cfg(feature = "debug")]
                 eprintln!("[Statement] '{}'", s);
 
                 res.push_str(&s);
                 res.push_str("\n");
             },
             Token::Text(t) => {
+                #[cfg(feature = "debug")]
                 eprintln!("[Text] '{}'", t);
 
                 res.push_str("table.insert(_sb, [[\n");

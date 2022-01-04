@@ -249,7 +249,8 @@ fn main() {
         }
     } // loop
 
-    // Debug.
+    // Units.
+    #[cfg(feature = "debug")]
     for (unit_idx, unit) in units.iter_mut().enumerate() {
         eprintln!("[{}] {:?}", unit_idx, unit);
     } // for
