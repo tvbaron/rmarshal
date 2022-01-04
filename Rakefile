@@ -10,5 +10,6 @@ EOS
 end
 
 task :test do
+  sh 'cargo test'
   sh 'rspec --format documentation ./test/spec/'
 end

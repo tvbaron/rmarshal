@@ -165,3 +165,62 @@ pub enum Unit {
     Lua(UnitCommand),
     Template(UnitCommand),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_file_format_for_path_json() {
+        let json = FileFormat::for_path("yo.json");
+        assert_eq!(json, FileFormat::Json);
+    }
+
+    #[test]
+    fn test_file_format_for_path_toml() {
+        let toml = FileFormat::for_path("yo.toml");
+        assert_eq!(toml, FileFormat::Toml);
+    }
+
+    #[test]
+    fn test_file_format_for_path_yaml() {
+        let yaml = FileFormat::for_path("yo.yaml");
+        assert_eq!(yaml, FileFormat::Yaml);
+    }
+
+    #[test]
+    fn test_file_format_for_path_txt() {
+        let txt = FileFormat::for_path("yo.txt");
+        assert_eq!(txt, FileFormat::Unknown);
+    }
+
+    #[test]
+    fn test_file_format_for_str_any() {
+        let any = FileFormat::for_str("any");
+        assert_eq!(any, Ok(FileFormat::Unknown));
+    }
+
+    #[test]
+    fn test_file_format_for_str_json() {
+        let json = FileFormat::for_str("json");
+        assert_eq!(json, Ok(FileFormat::Json));
+    }
+
+    #[test]
+    fn test_file_format_for_str_toml() {
+        let toml = FileFormat::for_str("toml");
+        assert_eq!(toml, Ok(FileFormat::Toml));
+    }
+
+    #[test]
+    fn test_file_format_for_str_yaml() {
+        let yaml = FileFormat::for_str("yaml");
+        assert_eq!(yaml, Ok(FileFormat::Yaml));
+    }
+
+    #[test]
+    fn test_file_format_for_str_foo() {
+        let foo = FileFormat::for_str("foo");
+        assert_eq!(foo, Err(()));
+    }
+}
