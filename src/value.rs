@@ -10,11 +10,12 @@ use serde_json::{Value as JsonValue};
 use serde_yaml::{Value as YamlValue};
 use toml::{Value as TomlValue};
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum Value {
     Nil,
     Boolean(bool),
     Integer(i64),
+    Float(f64),
     String(String),
     Array(Vec<Value>),
     Object(IndexMap<String, Value>),
@@ -29,6 +30,7 @@ impl Serialize for Value {
             Value::Nil => serializer.serialize_none(),
             Value::Boolean(v) => serializer.serialize_bool(v),
             Value::Integer(v) => serializer.serialize_i64(v),
+            Value::Float(v) => serializer.serialize_f64(v),
             Value::String(ref v) => serializer.serialize_str(v),
             Value::Array(ref a) => a.serialize(serializer),
             Value::Object(ref o) => {
@@ -339,6 +341,9 @@ pub fn to_lua_string(value: &Value) -> String {
         Value::Integer(i) => {
             format!("{}", i)
         },
+        Value::Float(f) => {
+            format!("{}", f)
+        },
         Value::String(s) => {
             let mut sb = String::new();
             sb.push('"');
@@ -383,7 +388,13 @@ fn from_json_value(value: &JsonValue) -> Value {
     match value {
         JsonValue::Null => Value::Nil,
         JsonValue::Bool(v) => Value::Boolean(*v),
-        JsonValue::Number(v) => Value::Integer(v.as_i64().unwrap()),
+        JsonValue::Number(v) => {
+            if v.is_f64() {
+                Value::Float(v.as_f64().unwrap())
+            } else {
+                Value::Integer(v.as_i64().unwrap())
+            }
+        },
         JsonValue::String(v) => Value::String(v.clone()),
         JsonValue::Array(a) => {
             let mut new_array = Vec::new();
@@ -420,7 +431,13 @@ fn from_yaml_value(value: &YamlValue) -> Value {
     match value {
         YamlValue::Null => Value::Nil,
         YamlValue::Bool(v) => Value::Boolean(*v),
-        YamlValue::Number(v) => Value::Integer(v.as_i64().unwrap()),
+        YamlValue::Number(v) => {
+            if v.is_f64() {
+                Value::Float(v.as_f64().unwrap())
+            } else {
+                Value::Integer(v.as_i64().unwrap())
+            }
+        },
         YamlValue::String(v) => Value::String(v.clone()),
         YamlValue::Sequence(a) => {
             let mut new_array = Vec::new();
@@ -463,8 +480,8 @@ fn from_toml_value(value: &TomlValue) -> Value {
     match value {
         TomlValue::Boolean(v) => Value::Boolean(*v),
         TomlValue::Integer(v) => Value::Integer(*v),
-        TomlValue::Float(_) => Value::Nil,
-        TomlValue::Datetime(_) => Value::Nil,
+        TomlValue::Float(v) => Value::Float(*v),
+        TomlValue::Datetime(v) => Value::String(v.to_string()),
         TomlValue::String(v) => Value::String(v.clone()),
         TomlValue::Array(a) => {
             let mut new_array = Vec::new();
