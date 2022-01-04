@@ -25,6 +25,16 @@ describe 'copy:json' do
       AppHelper.exec_prog ["#{context.datadir}/input01.json", "--copy", "--json", "--pretty", "#{AppHelper.tmpdir}/out.json"]
       expect(File.read("#{AppHelper.tmpdir}/out.json")).to eq(File.read("#{context.datadir}/expect02.json"))
     end
+
+    it 'copies (eol)' do
+      AppHelper.exec_prog ["#{context.datadir}/input01.json", "--copy", "--json", "--eol", "#{AppHelper.tmpdir}/out.json"]
+      expect(File.read("#{AppHelper.tmpdir}/out.json")).to eq(File.read("#{context.datadir}/expect03.json"))
+    end
+
+    it 'copies (pretty, eol)' do
+      AppHelper.exec_prog ["#{context.datadir}/input01.json", "--copy", "--json", "--pretty", "--eol", "#{AppHelper.tmpdir}/out.json"]
+      expect(File.read("#{AppHelper.tmpdir}/out.json")).to eq(File.read("#{context.datadir}/expect04.json"))
+    end
   end
 
   describe 'copy JSON file to JSON stdout' do
@@ -42,6 +52,18 @@ describe 'copy:json' do
       sb = StringIO.new
       AppHelper.exec_prog ["#{context.datadir}/input01.json", "--copy", "--json", "--pretty", "-"], :stdout => sb
       expect(sb.string).to eq(File.read("#{context.datadir}/expect02.json"))
+    end
+
+    it 'copies (eol)' do
+      sb = StringIO.new
+      AppHelper.exec_prog ["#{context.datadir}/input01.json", "--copy", "--json", "--eol", "-"], :stdout => sb
+      expect(sb.string).to eq(File.read("#{context.datadir}/expect03.json"))
+    end
+
+    it 'copies (pretty, eol)' do
+      sb = StringIO.new
+      AppHelper.exec_prog ["#{context.datadir}/input01.json", "--copy", "--json", "--pretty", "--eol", "-"], :stdout => sb
+      expect(sb.string).to eq(File.read("#{context.datadir}/expect04.json"))
     end
   end
 
@@ -62,6 +84,20 @@ describe 'copy:json' do
       sb.puts '{"name":"Althea"}'
       AppHelper.exec_prog ["--json", "-", "--copy", "--json", "--pretty", "#{AppHelper.tmpdir}/out.json"], :stdin => sb
       expect(File.read("#{AppHelper.tmpdir}/out.json")).to eq(File.read("#{context.datadir}/expect02.json"))
+    end
+
+    it 'copies (eol)' do
+      sb = StringIO.new
+      sb.puts '{"name":"Althea"}'
+      AppHelper.exec_prog ["--json", "-", "--copy", "--json", "--eol", "#{AppHelper.tmpdir}/out.json"], :stdin => sb
+      expect(File.read("#{AppHelper.tmpdir}/out.json")).to eq(File.read("#{context.datadir}/expect03.json"))
+    end
+
+    it 'copies (pretty, eol)' do
+      sb = StringIO.new
+      sb.puts '{"name":"Althea"}'
+      AppHelper.exec_prog ["--json", "-", "--copy", "--json", "--pretty", "--eol", "#{AppHelper.tmpdir}/out.json"], :stdin => sb
+      expect(File.read("#{AppHelper.tmpdir}/out.json")).to eq(File.read("#{context.datadir}/expect04.json"))
     end
   end
 
@@ -84,6 +120,22 @@ describe 'copy:json' do
       so = StringIO.new
       AppHelper.exec_prog ["--json", "-", "--copy", "--json", "--pretty", "-"], :stdin => si, :stdout => so
       expect(so.string).to eq(File.read("#{context.datadir}/expect02.json"))
+    end
+
+    it 'copies (eol)' do
+      si = StringIO.new
+      si.puts '{"name":"Althea"}'
+      so = StringIO.new
+      AppHelper.exec_prog ["--json", "-", "--copy", "--json", "--eol", "-"], :stdin => si, :stdout => so
+      expect(so.string).to eq(File.read("#{context.datadir}/expect03.json"))
+    end
+
+    it 'copies (pretty, eol)' do
+      si = StringIO.new
+      si.puts '{"name":"Althea"}'
+      so = StringIO.new
+      AppHelper.exec_prog ["--json", "-", "--copy", "--json", "--pretty", "--eol", "-"], :stdin => si, :stdout => so
+      expect(so.string).to eq(File.read("#{context.datadir}/expect04.json"))
     end
   end
 end
