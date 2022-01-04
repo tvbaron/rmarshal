@@ -21,4 +21,16 @@ describe 'template' do
       expect(File.read("#{AppHelper.tmpdir}/out.txt")).to eq(File.read("#{context.datadir}/expect01.txt"))
     end
   end
+
+  describe 'render a template to stdout' do
+    before :each do
+      AppHelper.clear_dir(AppHelper.tmpdir)
+    end
+
+    it 'renders' do
+      sb = StringIO.new
+      AppHelper.exec_prog ["#{context.datadir}/input01.json", "--template", "#{context.datadir}/template01.txt", "--any", "-"], :stdout => sb
+      expect(sb.string).to eq(File.read("#{context.datadir}/expect01.txt"))
+    end
+  end
 end

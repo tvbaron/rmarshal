@@ -517,7 +517,7 @@ fn main() {
                     let v = values.pop_front().unwrap();
                     if let value::Value::String(s) = v {
                         let mut output_content = s.clone();
-                        if f.has_eol() {
+                        if f.has_eol() && !output_content.ends_with("\n") {
                             output_content.push('\n');
                         }
                         if f.path == STDIO_PLACEHOLDER {
