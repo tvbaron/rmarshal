@@ -17,17 +17,17 @@ describe 'concat' do
     end
 
     it 'concatenates (1)' do
-      AppHelper.exec_prog ["#{context.datadir}/input01.yaml", "--concat", "--json", "--pretty", "#{AppHelper.tmpdir}/out.json"]
+      AppHelper.exec_prog ["#{context.datadir}/input01.yaml", "--concat", "--json", "--eol", "--pretty", "#{AppHelper.tmpdir}/out.json"]
       expect(File.read("#{AppHelper.tmpdir}/out.json")).to eq(File.read("#{context.datadir}/expect01.json"))
     end
 
     it 'concatenates (2)' do
-      AppHelper.exec_prog ["#{context.datadir}/input01.yaml", "#{context.datadir}/input02.yaml", "--concat", "--json", "--pretty", "#{AppHelper.tmpdir}/out.json"]
+      AppHelper.exec_prog ["#{context.datadir}/input01.yaml", "#{context.datadir}/input02.yaml", "--concat", "--json", "--eol", "--pretty", "#{AppHelper.tmpdir}/out.json"]
       expect(File.read("#{AppHelper.tmpdir}/out.json")).to eq(File.read("#{context.datadir}/expect02.json"))
     end
 
     it 'concatenates (3)' do
-      AppHelper.exec_prog ["#{context.datadir}/input01.yaml", "#{context.datadir}/input02.yaml", "#{context.datadir}/input03.yaml", "--concat", "--json", "--pretty", "#{AppHelper.tmpdir}/out.json"]
+      AppHelper.exec_prog ["#{context.datadir}/input01.yaml", "#{context.datadir}/input02.yaml", "#{context.datadir}/input03.yaml", "--concat", "--json", "--eol", "--pretty", "#{AppHelper.tmpdir}/out.json"]
       expect(File.read("#{AppHelper.tmpdir}/out.json")).to eq(File.read("#{context.datadir}/expect03.json"))
     end
   end

@@ -32,26 +32,33 @@ impl FileFormat {
         }
     }
 
-    pub fn for_str(format: &str) -> Self {
+    // Returns a FileFormat for a given string representation.
+    pub fn for_str(format: &str) -> Result<Self, ()> {
         match format {
-            "json" => FileFormat::Json,
-            "toml" => FileFormat::Toml,
-            "yaml" => FileFormat::Yaml,
-            _ => FileFormat::Unknown,
+            "any" => Ok(FileFormat::Unknown),
+            "json" => Ok(FileFormat::Json),
+            "toml" => Ok(FileFormat::Toml),
+            "yaml" => Ok(FileFormat::Yaml),
+            _ => Err(()),
         }
     }
 
-    pub fn is_known(&self) -> bool {
-        *self != FileFormat::Unknown
-    }
+    // pub fn is_known(&self) -> bool {
+    //     *self != FileFormat::Unknown
+    // }
 }
 
 #[derive(Debug, Default)]
 pub struct UnitFile {
     pub path: String,
     pub format: FileFormat,
-    pub end: Option<bool>,
+    // The ending 3 dots of YAML.
+    pub dots: Option<bool>,
+    // The trailing new line character.
+    pub eol: Option<bool>,
+    // To reorder object elements of TOML.
     pub fix: Option<bool>,
+    // The JSON pretty format.
     pub pretty: Option<bool>,
 }
 
@@ -60,7 +67,8 @@ impl UnitFile {
         UnitFile {
             path: path.to_owned(),
             format: FileFormat::for_path(path),
-            end: None,
+            dots: None,
+            eol: None,
             fix: None,
             pretty: None,
         }
@@ -78,9 +86,42 @@ impl UnitFile {
         UnitFile {
             path: String::new(),
             format,
-            end: None,
+            dots: None,
+            eol: None,
             fix: None,
             pretty: None,
+        }
+    }
+
+    pub fn has_dots(&self) -> bool {
+        if let Some(true) = self.dots {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn has_eol(&self) -> bool {
+        if let Some(true) = self.eol {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn has_fix(&self) -> bool {
+        if let Some(true) = self.fix {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn has_pretty(&self) -> bool {
+        if let Some(true) = self.pretty {
+            true
+        } else {
+            false
         }
     }
 }

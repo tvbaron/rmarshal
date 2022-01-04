@@ -82,24 +82,15 @@ module AppHelper
     output = opts.fetch(:stdout, nil)
     use_stdout = !output.nil?
 
-    Open3.popen3(AppHelper.program, *args) do |stdin, stdout, stderr, wait_thr|
-      if use_stdin
-        stdin.puts input.string
-        stdin.close
-      end
-      if use_stdout
-        while line = stdout.gets
-          output.puts line
-        end
-        output.close
-      end
-
-      # while line = stderr.gets
-      #   $stderr.puts line
-      # end
-
-      exit_status = wait_thr.value
-      raise RuntimeError, "exit_status: actual(#{exit_status}) != expected(0)" if exit_status != 0
+    capture_opts = {}
+    capture_opts[:stdin_data] = input.string if use_stdin
+    stdout_data, exit_status = Open3.capture2(AppHelper.program, *args, capture_opts)
+    if use_stdout
+      output.write stdout_data
     end
+
+    raise RuntimeError, "exit_status: actual(#{exit_status}) != expected(0)" if exit_status != 0
+
+    exit_status
   end
 end

@@ -69,6 +69,18 @@ fn read_content(path: &String) -> Result<String, std::io::Error> {
  * - WRONG_INPUT(21)
  */
 fn main() {
+    // let debug_level =
+    //         match std::env::var_os("DEBUG") {
+    //             Some(v) => match v.into_string() {
+    //                 Ok(v) => match v.parse::<isize>() {
+    //                     Ok(v) => v,
+    //                     Err(_) => 0,
+    //                 },
+    //                 Err(_) => 0,
+    //             },
+    //             None => 0,
+    //         };
+
     // (1ofx) Parse arguments.
     let mut units: VecDeque<Unit> = VecDeque::new();
     let mut args: VecDeque<String> = std::env::args().skip(1).collect();
@@ -167,11 +179,14 @@ fn main() {
                     units.push_back(Unit::Template(ucmd));
                 } else {
                     // A file format -> input or output.
-                    let format = FileFormat::for_str(option);
-                    if !format.is_known() {
-                        eprintln!("wrong parameter");
-                        std::process::exit(10);
-                    }
+                    let format =
+                            match FileFormat::for_str(option) {
+                                Ok(f) => f,
+                                Err(_) => {
+                                    eprintln!("wrong parameter");
+                                    std::process::exit(10);
+                                },
+                            };
 
                     let mut ufile = UnitFile::for_format(format);
                     loop {
@@ -183,9 +198,12 @@ fn main() {
                                         std::process::exit(10);
                                     },
                                 };
-                        if next_opt == "--end" {
+                        if next_opt == "--dots" {
                             args.pop_front();
-                            ufile.end = Some(true);
+                            ufile.dots = Some(true);
+                        } else if next_opt == "--eol" {
+                            args.pop_front();
+                            ufile.eol = Some(true);
                         } else if next_opt == "--fix" {
                             args.pop_front();
                             ufile.fix = Some(true);
@@ -233,7 +251,7 @@ fn main() {
 
     // Debug.
     for (unit_idx, unit) in units.iter_mut().enumerate() {
-        eprintln!("[{}] {:?}", unit_idx, unit); // FIXME
+        eprintln!("[{}] {:?}", unit_idx, unit);
     } // for
 
     // (2ofx) Read input documents.
@@ -246,7 +264,10 @@ fn main() {
                 };
         match unit {
             Unit::File(f) => match f.format {
-                FileFormat::Unknown => panic!("wtf"),
+                FileFormat::Unknown => {
+                    eprintln!("wrong input");
+                    std::process::exit(21);
+                },
                 FileFormat::Json => {
                     let content =
                             match read_content(&f.path) {
@@ -256,15 +277,6 @@ fn main() {
 
                     values.push_back(value::from_json_str(&content).unwrap());
                 },
-                FileFormat::Yaml => {
-                    let content =
-                            match read_content(&f.path) {
-                                Ok(c) => c,
-                                Err(e) => panic!("{}", e),
-                            };
-
-                    values.push_back(value::from_yaml_str(&content).unwrap());
-                },
                 FileFormat::Toml => {
                     let content =
                             match read_content(&f.path) {
@@ -273,6 +285,15 @@ fn main() {
                             };
 
                     values.push_back(value::from_toml_str(&content).unwrap());
+                },
+                FileFormat::Yaml => {
+                    let content =
+                            match read_content(&f.path) {
+                                Ok(c) => c,
+                                Err(e) => panic!("{}", e),
+                            };
+
+                    values.push_back(value::from_yaml_str(&content).unwrap());
                 },
             },
             _ => {
@@ -494,10 +515,14 @@ fn main() {
                 FileFormat::Unknown => {
                     let v = values.pop_front().unwrap();
                     if let value::Value::String(s) = v {
+                        let mut output_content = s.clone();
+                        if f.has_eol() {
+                            output_content.push('\n');
+                        }
                         if f.path == STDIO_PLACEHOLDER {
-                            print!("{}", s);
+                            print!("{}", output_content);
                         } else {
-                            match std::fs::write(f.path, s) {
+                            match std::fs::write(f.path, output_content) {
                                 Ok(_) => {},
                                 Err(e) => panic!("{}", e),
                             }
@@ -509,17 +534,42 @@ fn main() {
                 FileFormat::Json => {
                     let v = values.pop_front().unwrap();
                     let mut output_content =
-                            match f.pretty {
-                                Some(true) => match serde_json::to_string_pretty(&v) {
+                            if f.has_pretty() {
+                                match serde_json::to_string_pretty(&v) {
                                     Ok(c) => c,
                                     Err(e) => panic!("{}", e),
-                                },
-                                _ => match serde_json::to_string(&v) {
+                                }
+                            } else {
+                                match serde_json::to_string(&v) {
                                     Ok(c) => c,
                                     Err(e) => panic!("{}", e),
-                                },
+                                }
                             };
-                    output_content.push('\n');
+                    if f.has_eol() {
+                        output_content.push('\n');
+                    }
+                    if f.path == STDIO_PLACEHOLDER {
+                        print!("{}", output_content);
+                    } else {
+                        match std::fs::write(f.path, output_content) {
+                            Ok(_) => {},
+                            Err(e) => panic!("{}", e),
+                        }
+                    }
+                },
+                FileFormat::Toml => {
+                    let v = values.pop_front().unwrap();
+                    let v =
+                            if f.has_fix() {
+                                value::fix_toml(&v)
+                            } else {
+                                v
+                            };
+                    let output_content =
+                            match toml::to_string(&v) {
+                                Ok(c) => c,
+                                Err(e) => panic!("{}", e),
+                            };
                     if f.path == STDIO_PLACEHOLDER {
                         print!("{}", output_content);
                     } else {
@@ -536,31 +586,12 @@ fn main() {
                                 Ok(c) => c,
                                 Err(e) => panic!("{}", e),
                             };
-                    if let Some(true) = f.end {
-                        output_content.push_str("...\n");
+                    if f.has_dots() {
+                        output_content.push_str("...");
                     }
-                    if f.path == STDIO_PLACEHOLDER {
-                        print!("{}", output_content);
-                    } else {
-                        match std::fs::write(f.path, output_content) {
-                            Ok(_) => {},
-                            Err(e) => panic!("{}", e),
-                        }
+                    if f.has_eol() {
+                        output_content.push('\n');
                     }
-                },
-                FileFormat::Toml => {
-                    let v = values.pop_front().unwrap();
-                    let v =
-                            if let Some(true) = f.fix {
-                                value::fix_toml(&v)
-                            } else {
-                                v
-                            };
-                    let output_content =
-                            match toml::to_string(&v) {
-                                Ok(c) => c,
-                                Err(e) => panic!("{}", e),
-                            };
                     if f.path == STDIO_PLACEHOLDER {
                         print!("{}", output_content);
                     } else {

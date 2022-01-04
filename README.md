@@ -21,11 +21,13 @@ _rmarshal_ is a document processor.
                           | "--toml" <toml_modifiers>
                           | "--yaml" <yaml_modifiers>
     <json_modifiers>    ::= ""
+                          | "--eol" <json_modifiers>
                           | "--pretty" <json_modifiers>
     <toml_modifiers>    ::= ""
                           | "--fix" <toml_modifiers>
     <yaml_modifiers>    ::= ""
-                          | "--end" <yaml_modifiers>
+                          | "--dots" <yaml_modifiers>
+                          | "--eol" <yaml_modifiers>
     <path>              ::= <character> | <character> <text>
     <character>         ::= <letter> | <digit> | <symbol>
     <signed_integer>    ::= "-" <integer> | <integer>
