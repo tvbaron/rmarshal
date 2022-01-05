@@ -149,18 +149,6 @@ fn create_document(hint: DocumentHint, content: &str) -> Result<Value, ()> {
  * - WRONG_INPUT(21)
  */
 fn main() {
-    // let debug_level =
-    //         match std::env::var_os("DEBUG") {
-    //             Some(v) => match v.into_string() {
-    //                 Ok(v) => match v.parse::<isize>() {
-    //                     Ok(v) => v,
-    //                     Err(_) => 0,
-    //                 },
-    //                 Err(_) => 0,
-    //             },
-    //             None => 0,
-    //         };
-
     // (1ofx) Parse arguments.
     let mut units: VecDeque<Unit> = VecDeque::new();
     let mut args: VecDeque<String> = std::env::args().skip(1).collect();
@@ -639,22 +627,27 @@ fn main() {
         match unit {
             Unit::File(f) => match f.format {
                 FileFormat::Unknown => {
-                    let v = values.pop_front().unwrap();
-                    if let Value::String(s) = v {
-                        let mut output_content = s.clone();
-                        if f.has_eol() && !output_content.ends_with("\n") {
-                            output_content.push('\n');
-                        }
-                        if f.path == STDIO_PLACEHOLDER {
-                            print!("{}", output_content);
-                        } else {
-                            match std::fs::write(f.path, output_content) {
-                                Ok(_) => {},
-                                Err(e) => panic!("{}", e),
-                            }
-                        }
+                    let val = values.pop_front().unwrap();
+                    let mut output_content =
+                            match val {
+                                Value::Nil => "~".to_owned(),
+                                Value::Boolean(v) => format!("{}", v),
+                                Value::Integer(v) => format!("{}", v),
+                                Value::Float(v) => format!("{}", v),
+                                Value::String(v) => v.clone(),
+                                _ => panic!("wtf"),
+                            };
+
+                    if f.has_eol() && !output_content.ends_with("\n") {
+                        output_content.push('\n');
+                    }
+                    if f.path == STDIO_PLACEHOLDER {
+                        print!("{}", output_content);
                     } else {
-                        panic!("wtf");
+                        match std::fs::write(f.path, output_content) {
+                            Ok(_) => {},
+                            Err(e) => panic!("{}", e),
+                        }
                     }
                 },
                 FileFormat::Json => {
