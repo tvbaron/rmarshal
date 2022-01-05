@@ -9,7 +9,13 @@ Available tasks:
 EOS
 end
 
-task :test do
+desc 'Compile the debug target.'
+task :compile_debug do
+  sh 'cargo build'
+end
+
+desc 'Run all tests.'
+task :test => :compile_debug do
   sh 'cargo test'
   sh 'rspec --format documentation ./test/spec/'
 end

@@ -15,10 +15,14 @@ mod template;
 use crate::unit::{
     LUA_PATH_SUFFIX,
     FileFormat,
+    DocumentHint,
+    UnitDocument,
     UnitFile,
     UnitCommand,
     Unit,
 };
+
+use crate::value::Value;
 
 const STDIO_PLACEHOLDER: &str = "-";
 
@@ -225,14 +229,50 @@ fn main() {
         } else if arg.starts_with(SHORT_OPTION_PREFIX) {
             // Short option.
 
-            if arg.len() != (SHORT_OPTION_PREFIX_LEN + 1) {
-                eprintln!("wrong parameter");
-                std::process::exit(10);
-            }
+            let is_long = arg.len() > (SHORT_OPTION_PREFIX_LEN + 1);
+            let option = arg.get(SHORT_OPTION_PREFIX_LEN..SHORT_OPTION_PREFIX_LEN + 1).unwrap();
 
-            if let Some(_option) = arg.get(SHORT_OPTION_PREFIX_LEN..) {
-                eprintln!("not implemented yet");
-                std::process::exit(10);
+            if option == "D" {
+                // A Document.
+                if arg.len() > (SHORT_OPTION_PREFIX_LEN + 2) {
+                    // Very long. Everything is concatenated.
+                    let hint = arg.get(SHORT_OPTION_PREFIX_LEN + 1..SHORT_OPTION_PREFIX_LEN + 2).unwrap();
+                    let spec = arg.get(SHORT_OPTION_PREFIX_LEN + 2..).unwrap();
+                    let doc =
+                            match UnitDocument::for_hint(hint, spec) {
+                                Ok(d) => d,
+                                Err(_) => {
+                                    eprintln!("wrong parameter");
+                                    std::process::exit(10);
+                                },
+                            };
+                    units.push_back(Unit::Document(doc));
+                } else if is_long {
+                    // Only the hint is concatenated.
+                    let hint = arg.get(SHORT_OPTION_PREFIX_LEN + 1..).unwrap();
+                    let spec = args.pop_front().unwrap();
+                    let doc =
+                            match UnitDocument::for_hint(hint, &spec) {
+                                Ok(d) => d,
+                                Err(_) => {
+                                    eprintln!("wrong parameter");
+                                    std::process::exit(10);
+                                },
+                            };
+                    units.push_back(Unit::Document(doc));
+                } else {
+                    let hint = args.pop_front().unwrap();
+                    let spec = args.pop_front().unwrap();
+                    let doc =
+                            match UnitDocument::for_hint(&hint, &spec) {
+                                Ok(d) => d,
+                                Err(_) => {
+                                    eprintln!("wrong parameter");
+                                    std::process::exit(10);
+                                },
+                            };
+                    units.push_back(Unit::Document(doc));
+                }
             } else {
                 eprintln!("wrong parameter");
                 std::process::exit(10);
@@ -264,6 +304,56 @@ fn main() {
                     None => break,
                 };
         match unit {
+            Unit::Document(d) => {
+                let value =
+                        match d.hint {
+                            DocumentHint::Nil => {
+                                if d.content == "~" {
+                                    Value::Nil
+                                } else {
+                                    eprintln!("wrong input");
+                                    std::process::exit(21);
+                                }
+                            },
+                            DocumentHint::Boolean => {
+                                let lc_val = d.content.to_lowercase();
+                                match lc_val.as_str() {
+                                    "false" | "off" => Value::Boolean(false),
+                                    "true" | "on" => Value::Boolean(true),
+                                    _ => {
+                                        eprintln!("wrong input");
+                                        std::process::exit(21);
+                                    },
+                                }
+                            },
+                            DocumentHint::Integer => {
+                                let val =
+                                        match d.content.parse::<i64>() {
+                                            Ok(v) => v,
+                                            Err(_) => {
+                                                eprintln!("wrong input");
+                                                std::process::exit(21);
+                                            },
+                                        };
+
+                                Value::Integer(val)
+                            },
+                            DocumentHint::Float => {
+                                let val =
+                                        match d.content.parse::<f64>() {
+                                            Ok(v) => v,
+                                            Err(_) => {
+                                                eprintln!("wrong input");
+                                                std::process::exit(21);
+                                            },
+                                        };
+
+                                Value::Float(val)
+                            },
+                            DocumentHint::String => Value::String(d.content),
+                        };
+                values.push_back(value);
+            },
             Unit::File(f) => match f.format {
                 FileFormat::Unknown => {
                     eprintln!("wrong input");
@@ -325,7 +415,7 @@ fn main() {
 
                     let val = values.pop_front().unwrap();
                     match val {
-                        value::Value::Array(l) => {
+                        Value::Array(l) => {
                             for e in l.iter() {
                                 res.push(e.clone());
                             } // for
@@ -337,7 +427,7 @@ fn main() {
                     }
                 } // loop
 
-                values.push_back(value::Value::Array(res));
+                values.push_back(Value::Array(res));
             },
             Unit::Check => {
                 // Nothing else to do since every input has been read and checked already.
@@ -373,7 +463,7 @@ fn main() {
                     res.push(val);
                 } // loop
 
-                values.push_back(value::Value::Array(res));
+                values.push_back(Value::Array(res));
             },
             Unit::Unpack => {
                 let mut len = values.len();
@@ -385,7 +475,7 @@ fn main() {
                     len -= 1;
                     let val = values.pop_front().unwrap();
                     match val {
-                        value::Value::Array(l) => {
+                        Value::Array(l) => {
                             for e in l.iter() {
                                 values.push_back(e.clone());
                             } // for
@@ -426,7 +516,6 @@ fn main() {
                                 sb.push_str("table.insert(ctx.inputs,");
                                 sb.push_str(&value::to_lua_string(&value));
                                 sb.push_str(")");
-                                // println!("{}", sb);
                                 lua_ctx.load(&sb).exec().unwrap();
                             } // for
 
@@ -443,13 +532,12 @@ fn main() {
 
                             value::from_lua_table(outputs)
                         });
-                if let value::Value::Array(vals) = output_value {
+                if let Value::Array(vals) = output_value {
                     values.extend(vals);
                 }
             },
             Unit::Template(c) => {
                 let template = template::Template::for_path(c.path.as_ref().unwrap());
-                // println!("{}", template.content);
                 let lua = rlua::Lua::new();
                 let input_values = values.clone();
                 values.clear();
@@ -473,7 +561,6 @@ fn main() {
                                 sb.push_str("table.insert(ctx.inputs,");
                                 sb.push_str(&value::to_lua_string(&value));
                                 sb.push_str(")");
-                                // println!("{}", sb);
                                 lua_ctx.load(&sb).exec().unwrap();
                             } // for
 
@@ -494,7 +581,7 @@ fn main() {
                             }
                         });
                 if let Some(v) = output_value {
-                    values.push_back(value::Value::String(v));
+                    values.push_back(Value::String(v));
                 }
             },
             _ => {
@@ -515,7 +602,7 @@ fn main() {
             Unit::File(f) => match f.format {
                 FileFormat::Unknown => {
                     let v = values.pop_front().unwrap();
-                    if let value::Value::String(s) = v {
+                    if let Value::String(s) = v {
                         let mut output_content = s.clone();
                         if f.has_eol() && !output_content.ends_with("\n") {
                             output_content.push('\n');

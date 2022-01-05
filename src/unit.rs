@@ -48,6 +48,58 @@ impl FileFormat {
     // }
 }
 
+#[derive(Debug)]
+pub enum DocumentHint {
+    Nil,
+    Boolean,
+    Integer,
+    Float,
+    String,
+    // Array,
+    // Object,
+}
+
+impl DocumentHint {
+    // Returns a DocumentHint for a given string representation.
+    pub fn for_str(hint: &str) -> Result<Self, ()> {
+        let hint =
+                if hint.len() > 1 {
+                    hint.to_lowercase()
+                } else {
+                    hint.to_owned()
+                };
+        match hint.as_str() {
+            "N" | "nil" => Ok(DocumentHint::Nil),
+            "B" | "boolean" => Ok(DocumentHint::Boolean),
+            "I" | "integer" => Ok(DocumentHint::Integer),
+            "F" | "float" => Ok(DocumentHint::Float),
+            "S" | "string" => Ok(DocumentHint::String),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct UnitDocument {
+    pub hint: DocumentHint,
+    pub content: String,
+}
+
+impl UnitDocument {
+    pub fn new(hint: DocumentHint, content: &str) -> Self {
+        UnitDocument {
+            hint,
+            content: content.to_owned(),
+        }
+    }
+
+    pub fn for_hint(hint: &str, content: &str) -> Result<Self, ()> {
+        let hint = DocumentHint::for_str(hint)?;
+
+        Ok(UnitDocument::new(hint, content))
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct UnitFile {
     pub path: String,
@@ -153,6 +205,8 @@ impl UnitCommand {
 // Parameter Unit.
 #[derive(Debug)]
 pub enum Unit {
+    // Input only:
+    Document(UnitDocument),
     // Input or output:
     File(UnitFile),
     // Commands:

@@ -4,34 +4,48 @@ _rmarshal_ is a document processor.
 
 ## CLI Syntax
 
-    <syntax>            ::= "--help" | "--version" | <pipeline>
-    <pipeline>          ::= <unit> | <pipeline> <unit>
-    <unit>              ::= <command> | <format> <path> | <path>
-    <command>           ::= "--check"
-                          | "--concat"
-                          | "--copy"
-                          | "--merge" <merge_modifiers>
-                          | "--pack"
-                          | "--unpack"
-                          | "--lua" <path>
-                          | "--template" <path>
-    <merge_modifiers>   ::= ""
-                          | "--depth" <signed_integer> <merge_modifiers>
-    <format>            ::= "--json" <json_modifiers>
-                          | "--toml" <toml_modifiers>
-                          | "--yaml" <yaml_modifiers>
-    <json_modifiers>    ::= ""
-                          | "--eol" <json_modifiers>
-                          | "--pretty" <json_modifiers>
-    <toml_modifiers>    ::= ""
-                          | "--fix" <toml_modifiers>
-    <yaml_modifiers>    ::= ""
-                          | "--dots" <yaml_modifiers>
-                          | "--eol" <yaml_modifiers>
-    <path>              ::= <character> | <character> <text>
-    <character>         ::= <letter> | <digit> | <symbol>
-    <signed_integer>    ::= "-" <integer> | <integer>
-    <integer>           ::= <digit> | <integer> <digit>
+    <syntax>              ::= "--help" | "--version" | <pipeline>
+    <pipeline>            ::= <unit> | <pipeline> <whitespace> <unit>
+    <unit>                ::= <path>
+                            | <format> <whitespace> <path>
+                            | <document>
+                            | <command>
+    <format>              ::= "--json" <json_modifiers>
+                            | "--toml" <toml_modifiers>
+                            | "--yaml" <yaml_modifiers>
+    <json_modifiers>      ::= ""
+                            | <whitespace> "--eol" <json_modifiers>
+                            | <whitespace> "--pretty" <json_modifiers>
+    <toml_modifiers>      ::= ""
+                            | <whitespace> "--fix" <toml_modifiers>
+    <yaml_modifiers>      ::= ""
+                            | <whitespace> "--dots" <yaml_modifiers>
+                            | <whitespace> "--eol" <yaml_modifiers>
+    <document>            ::= "-D" <whitespace> <document_hint_long> <whitespace> <text>
+                            | "-D" <document_hint_short> <opt_whitespace> <text>
+    <document_hint_long>  ::= "nil"
+                            | "boolean"
+                            | "integer"
+                            | "float"
+                            | "string"
+    <document_hint_short> ::= "N" | "B" | "I" | "F" | "S"
+    <command>             ::= "--check"
+                            | "--concat"
+                            | "--copy"
+                            | "--merge" <merge_modifiers>
+                            | "--pack"
+                            | "--unpack"
+                            | "--lua" <whitespace> <path>
+                            | "--template" <whitespace> <path>
+    <merge_modifiers>     ::= ""
+                            | <whitespace> "--depth" <whitespace> <signed_integer> <merge_modifiers>
+    <path>                ::= <character> | <character> <path>
+    <text>                ::= <character> | <character> <text>
+    <character>           ::= <letter> | <digit> | <symbol>
+    <signed_integer>      ::= "-" <integer> | <integer>
+    <integer>             ::= <digit> | <integer> <digit>
+    <opt_whitespace>      ::= "" | <whitespace>
+    <whitespace>          ::= " " | <whitespace> " "
 
 ## Concat
 

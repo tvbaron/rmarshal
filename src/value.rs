@@ -177,6 +177,9 @@ pub fn from_lua_table(table: LuaTable) -> Value {
                     LuaValue::Integer(v) => {
                         a.push(Value::Integer(v));
                     },
+                    LuaValue::Number(v) => {
+                        a.push(Value::Float(v));
+                    },
                     LuaValue::String(s) => {
                         a.push(Value::String(s.to_str().unwrap().to_owned()));
                     },
@@ -211,6 +214,7 @@ pub fn from_lua_table(table: LuaTable) -> Value {
                             Ok(v) => match v {
                                 LuaValue::Boolean(v) => Value::Boolean(v),
                                 LuaValue::Integer(v) => Value::Integer(v),
+                                LuaValue::Number(v) => Value::Float(v),
                                 LuaValue::String(s) => Value::String(s.to_str().unwrap().to_owned()),
                                 LuaValue::Table(ref t) => from_lua_table(t.clone()),
                                 _ => panic!("wrong object value"),
@@ -239,6 +243,9 @@ pub fn from_lua_table(table: LuaTable) -> Value {
                     },
                     LuaValue::Integer(v) => {
                         a.push(Value::Integer(v));
+                    },
+                    LuaValue::Number(v) => {
+                        a.push(Value::Float(v));
                     },
                     LuaValue::String(s) => {
                         a.push(Value::String(s.to_str().unwrap().to_owned()));
@@ -269,6 +276,9 @@ pub fn from_lua_table(table: LuaTable) -> Value {
                     },
                     LuaValue::Integer(v) => {
                         o.insert(field_name, Value::Integer(v));
+                    },
+                    LuaValue::Number(v) => {
+                        o.insert(field_name, Value::Float(v));
                     },
                     LuaValue::String(s) => {
                         o.insert(field_name, Value::String(s.to_str().unwrap().to_owned()));
