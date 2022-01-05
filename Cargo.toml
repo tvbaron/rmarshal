@@ -7,6 +7,8 @@ edition = "2018"
 
 [dependencies]
 indexmap = "1.7"
+lazy_static = "1.4"
+regex = "1.5"
 rlua = "0.18"
 serde = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }

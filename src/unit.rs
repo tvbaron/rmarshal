@@ -50,13 +50,12 @@ impl FileFormat {
 
 #[derive(Debug)]
 pub enum DocumentHint {
+    Any,
     Nil,
     Boolean,
     Integer,
     Float,
     String,
-    // Array,
-    // Object,
 }
 
 impl DocumentHint {
@@ -69,6 +68,7 @@ impl DocumentHint {
                     hint.to_owned()
                 };
         match hint.as_str() {
+            "_" | "any" => Ok(DocumentHint::Any),
             "N" | "nil" => Ok(DocumentHint::Nil),
             "B" | "boolean" => Ok(DocumentHint::Boolean),
             "I" | "integer" => Ok(DocumentHint::Integer),

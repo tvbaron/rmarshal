@@ -23,12 +23,13 @@ _rmarshal_ is a document processor.
                             | <whitespace> "--eol" <yaml_modifiers>
     <document>            ::= "-D" <whitespace> <document_hint_long> <whitespace> <text>
                             | "-D" <document_hint_short> <opt_whitespace> <text>
-    <document_hint_long>  ::= "nil"
+    <document_hint_long>  ::= "any"
+                            | "nil"
                             | "boolean"
                             | "integer"
                             | "float"
                             | "string"
-    <document_hint_short> ::= "N" | "B" | "I" | "F" | "S"
+    <document_hint_short> ::= "_" | "N" | "B" | "I" | "F" | "S"
     <command>             ::= "--check"
                             | "--concat"
                             | "--copy"

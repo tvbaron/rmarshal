@@ -1,10 +1,14 @@
 extern crate indexmap;
+extern crate lazy_static;
+extern crate regex;
 extern crate rlua;
 extern crate serde;
 extern crate serde_json;
 extern crate serde_yaml;
 extern crate toml;
 
+use lazy_static::lazy_static;
+use regex::Regex;
 use std::collections::VecDeque;
 
 mod unit;
@@ -36,7 +40,7 @@ const HELP_CMD: &str = "--help";
 const VERSION_CMD: &str = "--version";
 
 const PROGRAM: &str = "rmarshal";
-const VERSION: &str = "0.1.0";
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // Reads the content of a file.
 fn read_content(path: &String) -> Result<String, std::io::Error> {
@@ -61,6 +65,78 @@ fn read_content(path: &String) -> Result<String, std::io::Error> {
                 };
 
         Ok(content)
+    }
+}
+
+// Creates a document.
+fn create_document(hint: DocumentHint, content: &str) -> Result<Value, ()> {
+    match hint {
+        DocumentHint::Any => {
+            lazy_static! {
+                static ref INTEGER_RE: Regex = Regex::new("^[+-]?[0-9]+$").unwrap();
+                static ref FLOAT_RE: Regex = Regex::new("^[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)$").unwrap();
+            }
+            let lc_val = content.to_lowercase();
+            if content == "~" {
+                Ok(Value::Nil)
+            } else if lc_val == "false" || lc_val == "off" {
+                Ok(Value::Boolean(false))
+            } else if lc_val == "true" || lc_val == "on" {
+                Ok(Value::Boolean(true))
+            } else if INTEGER_RE.is_match(content) {
+                let val =
+                        match content.parse::<i64>() {
+                            Ok(v) => v,
+                            Err(_) => return Err(()),
+                        };
+
+                Ok(Value::Integer(val))
+            } else if FLOAT_RE.is_match(content) {
+                let val =
+                        match content.parse::<f64>() {
+                            Ok(v) => v,
+                            Err(_) => return Err(()),
+                        };
+
+                Ok(Value::Float(val))
+            } else {
+                Ok(Value::String(content.to_owned()))
+            }
+        },
+        DocumentHint::Nil => {
+            if content == "~" {
+                Ok(Value::Nil)
+            } else {
+                Err(())
+            }
+        },
+        DocumentHint::Boolean => {
+            let lc_val = content.to_lowercase();
+            match lc_val.as_str() {
+                "false" | "off" => Ok(Value::Boolean(false)),
+                "true" | "on" => Ok(Value::Boolean(true)),
+                _ => Err(()),
+            }
+        },
+        DocumentHint::Integer => {
+            let val =
+                    match content.parse::<i64>() {
+                        Ok(v) => v,
+                        Err(_) => return Err(()),
+                    };
+
+            Ok(Value::Integer(val))
+        },
+        DocumentHint::Float => {
+            let val =
+                    match content.parse::<f64>() {
+                        Ok(v) => v,
+                        Err(_) => return Err(()),
+                    };
+
+            Ok(Value::Float(val))
+        },
+        DocumentHint::String => Ok(Value::String(content.to_owned())),
     }
 }
 
@@ -306,52 +382,14 @@ fn main() {
         match unit {
             Unit::Document(d) => {
                 let value =
-                        match d.hint {
-                            DocumentHint::Nil => {
-                                if d.content == "~" {
-                                    Value::Nil
-                                } else {
-                                    eprintln!("wrong input");
-                                    std::process::exit(21);
-                                }
+                        match create_document(d.hint, &d.content) {
+                            Ok(v) => v,
+                            Err(_) => {
+                                eprintln!("wrong input");
+                                std::process::exit(21);
                             },
-                            DocumentHint::Boolean => {
-                                let lc_val = d.content.to_lowercase();
-                                match lc_val.as_str() {
-                                    "false" | "off" => Value::Boolean(false),
-                                    "true" | "on" => Value::Boolean(true),
-                                    _ => {
-                                        eprintln!("wrong input");
-                                        std::process::exit(21);
-                                    },
-                                }
-                            },
-                            DocumentHint::Integer => {
-                                let val =
-                                        match d.content.parse::<i64>() {
-                                            Ok(v) => v,
-                                            Err(_) => {
-                                                eprintln!("wrong input");
-                                                std::process::exit(21);
-                                            },
-                                        };
-
-                                Value::Integer(val)
-                            },
-                            DocumentHint::Float => {
-                                let val =
-                                        match d.content.parse::<f64>() {
-                                            Ok(v) => v,
-                                            Err(_) => {
-                                                eprintln!("wrong input");
-                                                std::process::exit(21);
-                                            },
-                                        };
-
-                                Value::Float(val)
-                            },
-                            DocumentHint::String => Value::String(d.content),
                         };
+
                 values.push_back(value);
             },
             Unit::File(f) => match f.format {
