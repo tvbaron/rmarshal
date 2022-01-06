@@ -56,6 +56,7 @@ pub enum DocumentHint {
     Integer,
     Float,
     String,
+    Lua,
 }
 
 impl DocumentHint {
@@ -74,6 +75,7 @@ impl DocumentHint {
             "I" | "integer" => Ok(DocumentHint::Integer),
             "F" | "float" => Ok(DocumentHint::Float),
             "S" | "string" => Ok(DocumentHint::String),
+            "L" | "lua" => Ok(DocumentHint::Lua),
             _ => Err(()),
         }
     }

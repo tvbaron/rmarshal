@@ -140,6 +140,46 @@ fn create_document(hint: DocumentHint, content: &str) -> Result<Value, ()> {
             Ok(Value::Float(val))
         },
         DocumentHint::String => Ok(Value::String(content.to_owned())),
+        DocumentHint::Lua => {
+            let mut lua_content = String::new();
+            lua_content.push_str("ctx:set_output(");
+            lua_content.push_str(content);
+            lua_content.push_str(")\n");
+            let lua = rlua::Lua::new();
+            let value =
+                    lua.context(|lua_ctx| {
+                        match lua_ctx.load(command::LUA_PRELUDE).exec() {
+                            Ok(_) => {},
+                            Err(e) => panic!("{}", e),
+                        }
+
+                        let globals = lua_ctx.globals();
+
+                        let ctx: rlua::Table =
+                                match globals.get("ctx") {
+                                    Ok(v) => v,
+                                    Err(e) => panic!("{}", e),
+                                };
+
+                        match lua_ctx.load(&lua_content).exec() {
+                            Ok(_) => {},
+                            Err(e) => panic!("{}", e),
+                        }
+
+                        let outputs: rlua::Table =
+                                match ctx.get("outputs") {
+                                    Ok(v) => v,
+                                    Err(e) => panic!("{}", e),
+                                };
+
+                        match value::from_lua_table(outputs) {
+                            Value::Array(a) => a[0].clone(),
+                            _ => panic!("lua"),
+                        }
+                    });
+
+            Ok(value)
+        },
     }
 }
 
@@ -184,7 +224,9 @@ fn main() {
 
         let arg = args.pop_front().unwrap();
         if arg == STDIO_PLACEHOLDER {
-            // For Lua and Template.
+            // May be:
+            // - stdin before the first command, or
+            // - stdout after the last command.
             units.push_back(Unit::File(UnitFile::for_path(STDIO_PLACEHOLDER)));
         } else if arg.starts_with(LONG_OPTION_PREFIX) {
             // Long option.
