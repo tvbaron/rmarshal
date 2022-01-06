@@ -11,11 +11,16 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::VecDeque;
 
-mod unit;
-mod value;
-mod command;
-mod template;
+mod util;
+use crate::util::{
+    LONG_OPTION_PREFIX,
+    LONG_OPTION_PREFIX_LEN,
+    SHORT_OPTION_PREFIX,
+    SHORT_OPTION_PREFIX_LEN,
+    FlaggedOption,
+};
 
+mod unit;
 use crate::unit::{
     LUA_PATH_SUFFIX,
     FileFormat,
@@ -26,15 +31,13 @@ use crate::unit::{
     Unit,
 };
 
+mod value;
 use crate::value::Value;
 
+mod command;
+mod template;
+
 const STDIO_PLACEHOLDER: &str = "-";
-
-const LONG_OPTION_PREFIX: &str = "--";
-const LONG_OPTION_PREFIX_LEN: usize = LONG_OPTION_PREFIX.len();
-
-const SHORT_OPTION_PREFIX: &str = "-";
-const SHORT_OPTION_PREFIX_LEN: usize = SHORT_OPTION_PREFIX.len();
 
 const HELP_CMD: &str = "--help";
 const VERSION_CMD: &str = "--version";
@@ -207,11 +210,30 @@ fn main() {
                                     Some(o) => o,
                                     None => break,
                                 };
-                        if next_opt == "--depth" || next_opt == "-d" {
-                            args.pop_front();
-                            let depth = args.pop_front().unwrap();
-                            let depth = depth.parse::<isize>().unwrap();
-                            ucmd.depth = Some(depth);
+                        if next_opt.starts_with("--depth") || next_opt.starts_with("-d") {
+                            let opt =
+                                    match FlaggedOption::from_str(&args.pop_front().unwrap()) {
+                                        Ok(o) => o,
+                                        Err(_) => {
+                                            eprintln!("wrong parameter");
+                                            std::process::exit(10);
+                                        },
+                                    };
+                            match opt.value {
+                                Some(v) => {
+                                    let depth = v.parse::<isize>().unwrap();
+                                    #[cfg(feature = "debug")]
+                                    eprintln!("option: depth {}", depth);
+                                    ucmd.depth = Some(depth);
+                                },
+                                None => {
+                                    let depth = args.pop_front().unwrap();
+                                    let depth = depth.parse::<isize>().unwrap();
+                                    #[cfg(feature = "debug")]
+                                    eprintln!("option: depth {}", depth);
+                                    ucmd.depth = Some(depth);
+                                },
+                            }
                         } else {
                             break;
                         }
