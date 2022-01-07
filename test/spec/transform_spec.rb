@@ -33,4 +33,16 @@ describe 'transform' do
       expect(File.read("#{AppHelper.tmpdir}/out2.json")).to eq(File.read("#{context.datadir}/expect02.json"))
     end
   end
+
+  describe 'transform 1 object' do
+    before :each do
+      AppHelper.clear_dir(AppHelper.tmpdir)
+    end
+
+    it 'transforms' do
+      sb = StringIO.new
+      AppHelper.exec_prog ["#{context.datadir}/input01.json", "--transform", "#{context.datadir}/script03.lua", "--json", "-"], :stdout => sb
+      expect(sb.string).to eq('{"name":"Bernard"}')
+    end
+  end
 end
