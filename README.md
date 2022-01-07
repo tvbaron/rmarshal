@@ -4,49 +4,51 @@ _rmarshal_ is a document processor.
 
 ## CLI Syntax
 
-    <syntax>              ::= "--help" | "--version" | <pipeline>
-    <pipeline>            ::= <unit> | <pipeline> <whitespace> <unit>
-    <unit>                ::= <path>
-                            | <format> <whitespace> <path>
-                            | <document>
-                            | <command>
-    <format>              ::= "--json" <json_modifiers>
-                            | "--toml" <toml_modifiers>
-                            | "--yaml" <yaml_modifiers>
-    <json_modifiers>      ::= ""
-                            | <whitespace> "--eol" <json_modifiers>
-                            | <whitespace> "--pretty" <json_modifiers>
-    <toml_modifiers>      ::= ""
-                            | <whitespace> "--fix" <toml_modifiers>
-    <yaml_modifiers>      ::= ""
-                            | <whitespace> "--dots" <yaml_modifiers>
-                            | <whitespace> "--eol" <yaml_modifiers>
-    <document>            ::= "-D" <whitespace> <document_hint_long> <whitespace> <text>
-                            | "-D" <document_hint_short> <opt_whitespace> <text>
-    <document_hint_long>  ::= "any"
-                            | "nil"
-                            | "boolean"
-                            | "integer"
-                            | "float"
-                            | "string"
-    <document_hint_short> ::= "_" | "N" | "B" | "I" | "F" | "S"
-    <command>             ::= "--check"
-                            | "--concat"
-                            | "--copy"
-                            | "--merge" <merge_modifiers>
-                            | "--pack"
-                            | "--unpack"
-                            | "--lua" <whitespace> <path>
-                            | "--template" <whitespace> <path>
-    <merge_modifiers>     ::= ""
-                            | <whitespace> "--depth" <whitespace> <signed_integer> <merge_modifiers>
-    <path>                ::= <character> | <character> <path>
-    <text>                ::= <character> | <character> <text>
-    <character>           ::= <letter> | <digit> | <symbol>
-    <signed_integer>      ::= "-" <integer> | <integer>
-    <integer>             ::= <digit> | <integer> <digit>
-    <opt_whitespace>      ::= "" | <whitespace>
-    <whitespace>          ::= " " | <whitespace> " "
+    <syntax>                  ::= "--help" | "--version" | <pipeline>
+    <pipeline>                ::= <unit> | <pipeline> <whitespace> <unit>
+    <unit>                    ::= <path>
+                                | <format> <opt_format_modifiers> <whitespace> <path>
+                                | <document>
+                                | <command>
+    <format>                  ::= "--json"
+                                | "--lua"
+                                | "--toml"
+                                | "--yaml"
+    <opt_format_modifiers>    ::= ""
+                                | <whitespace> "--dots" <opt_format_modifiers>
+                                | <whitespace> "--eol" <opt_format_modifiers>
+                                | <whitespace> "--fix" <opt_format_modifiers>
+                                | <whitespace> "--pretty" <opt_format_modifiers>
+                                | <whitespace> "--stream" <opt_stream_limit> <opt_format_modifiers>
+    <opt_stream_limit>        ::= ""
+                                | "=" <integer>
+    <document>                ::= "-D" <whitespace> <document_hint_long> <whitespace> <text>
+                                | "-D" <document_hint_short> <opt_whitespace> <text>
+    <document_hint_long>      ::= "any"
+                                | "nil"
+                                | "boolean"
+                                | "integer"
+                                | "float"
+                                | "string"
+                                | "lua"
+    <document_hint_short>     ::= "_" | "N" | "B" | "I" | "F" | "S" | "L"
+    <command>                 ::= "--check"
+                                | "--concat"
+                                | "--copy"
+                                | "--merge" <merge_modifiers>
+                                | "--pack"
+                                | "--unpack"
+                                | "--render" <whitespace> <path>
+                                | "--transform" <whitespace> <path>
+    <merge_modifiers>         ::= ""
+                                | <whitespace> "--depth" <whitespace> <signed_integer> <merge_modifiers>
+    <path>                    ::= <character> | <character> <path>
+    <text>                    ::= <character> | <character> <text>
+    <character>               ::= <letter> | <digit> | <symbol>
+    <signed_integer>          ::= "-" <integer> | <integer>
+    <integer>                 ::= <digit> | <integer> <digit>
+    <opt_whitespace>          ::= "" | <whitespace>
+    <whitespace>              ::= " " | <whitespace> " "
 
 ## Concat
 

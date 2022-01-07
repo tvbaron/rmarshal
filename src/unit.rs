@@ -1,13 +1,13 @@
 const JSON_PATH_SUFFIX: &str = ".json";
+const LUA_PATH_SUFFIX: &str = ".lua";
 const TOML_PATH_SUFFIX: &str = ".toml";
 const YAML_PATH_SUFFIX: &str = ".yaml";
-
-// const LUA_PATH_SUFFIX: &str = ".lua";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum FileFormat {
     Unknown,
     Json,
+    Lua,
     Toml,
     Yaml,
 }
@@ -23,6 +23,8 @@ impl FileFormat {
         let lc_path = path.to_lowercase();
         if lc_path.ends_with(JSON_PATH_SUFFIX) {
             FileFormat::Json
+        } else if lc_path.ends_with(LUA_PATH_SUFFIX) {
+            FileFormat::Lua
         } else if lc_path.ends_with(TOML_PATH_SUFFIX) {
             FileFormat::Toml
         } else if lc_path.ends_with(YAML_PATH_SUFFIX) {
@@ -37,6 +39,7 @@ impl FileFormat {
         match format {
             "any" => Ok(FileFormat::Unknown),
             "json" => Ok(FileFormat::Json),
+            "lua" => Ok(FileFormat::Lua),
             "toml" => Ok(FileFormat::Toml),
             "yaml" => Ok(FileFormat::Yaml),
             _ => Err(()),
@@ -238,57 +241,81 @@ pub enum Unit {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_file_format_for_path_json() {
-        let json = FileFormat::for_path("yo.json");
-        assert_eq!(json, FileFormat::Json);
-    }
+    mod file_format {
+        use super::*;
 
-    #[test]
-    fn test_file_format_for_path_toml() {
-        let toml = FileFormat::for_path("yo.toml");
-        assert_eq!(toml, FileFormat::Toml);
-    }
+        mod for_path {
+            use super::*;
 
-    #[test]
-    fn test_file_format_for_path_yaml() {
-        let yaml = FileFormat::for_path("yo.yaml");
-        assert_eq!(yaml, FileFormat::Yaml);
-    }
+            #[test]
+            fn it_create_json() {
+                let json = FileFormat::for_path("yo.json");
+                assert_eq!(json, FileFormat::Json);
+            }
 
-    #[test]
-    fn test_file_format_for_path_txt() {
-        let txt = FileFormat::for_path("yo.txt");
-        assert_eq!(txt, FileFormat::Unknown);
-    }
+            #[test]
+            fn it_create_toml() {
+                let toml = FileFormat::for_path("yo.toml");
+                assert_eq!(toml, FileFormat::Toml);
+            }
 
-    #[test]
-    fn test_file_format_for_str_any() {
-        let any = FileFormat::for_str("any");
-        assert_eq!(any, Ok(FileFormat::Unknown));
-    }
+            #[test]
+            fn it_create_lua() {
+                let lua = FileFormat::for_path("yo.lua");
+                assert_eq!(lua, FileFormat::Lua);
+            }
 
-    #[test]
-    fn test_file_format_for_str_json() {
-        let json = FileFormat::for_str("json");
-        assert_eq!(json, Ok(FileFormat::Json));
-    }
+            #[test]
+            fn it_create_yaml() {
+                let yaml = FileFormat::for_path("yo.yaml");
+                assert_eq!(yaml, FileFormat::Yaml);
+            }
 
-    #[test]
-    fn test_file_format_for_str_toml() {
-        let toml = FileFormat::for_str("toml");
-        assert_eq!(toml, Ok(FileFormat::Toml));
-    }
+            #[test]
+            fn it_create_txt() {
+                let txt = FileFormat::for_path("yo.txt");
+                assert_eq!(txt, FileFormat::Unknown);
+            }
+        }
 
-    #[test]
-    fn test_file_format_for_str_yaml() {
-        let yaml = FileFormat::for_str("yaml");
-        assert_eq!(yaml, Ok(FileFormat::Yaml));
-    }
+        mod for_str {
+            use super::*;
 
-    #[test]
-    fn test_file_format_for_str_foo() {
-        let foo = FileFormat::for_str("foo");
-        assert_eq!(foo, Err(()));
+            #[test]
+            fn it_create_any() {
+                let any = FileFormat::for_str("any");
+                assert_eq!(any, Ok(FileFormat::Unknown));
+            }
+
+            #[test]
+            fn it_create_json() {
+                let json = FileFormat::for_str("json");
+                assert_eq!(json, Ok(FileFormat::Json));
+            }
+
+            #[test]
+            fn it_create_lua() {
+                let lua = FileFormat::for_str("lua");
+                assert_eq!(lua, Ok(FileFormat::Lua));
+            }
+
+            #[test]
+            fn it_create_toml() {
+                let toml = FileFormat::for_str("toml");
+                assert_eq!(toml, Ok(FileFormat::Toml));
+            }
+
+            #[test]
+            fn it_create_yaml() {
+                let yaml = FileFormat::for_str("yaml");
+                assert_eq!(yaml, Ok(FileFormat::Yaml));
+            }
+
+            #[test]
+            fn it_does_not_create_foo() {
+                let foo = FileFormat::for_str("foo");
+                assert_eq!(foo, Err(()));
+            }
+        }
     }
 }

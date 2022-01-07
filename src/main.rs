@@ -70,6 +70,44 @@ fn read_content(path: &String) -> Result<String, std::io::Error> {
     }
 }
 
+fn create_lua_value(content: &str) -> Result<Value, ()> {
+    let mut lua_content = String::new();
+    lua_content.push_str("ctx:set_output(");
+    lua_content.push_str(content);
+    lua_content.push_str(")\n");
+    let lua = rlua::Lua::new();
+    lua.context(|lua_ctx| {
+        match lua_ctx.load(command::LUA_PRELUDE).exec() {
+            Ok(_) => {},
+            Err(_) => return Err(()),
+        }
+
+        let globals = lua_ctx.globals();
+
+        let ctx: rlua::Table =
+                match globals.get("ctx") {
+                    Ok(v) => v,
+                    Err(_) => return Err(()),
+                };
+
+        match lua_ctx.load(&lua_content).exec() {
+            Ok(_) => {},
+            Err(_) => return Err(()),
+        }
+
+        let outputs: rlua::Table =
+                match ctx.get("outputs") {
+                    Ok(v) => v,
+                    Err(_) => return Err(()),
+                };
+
+        match value::from_lua_table(outputs) {
+            Value::Array(a) => Ok(a[0].clone()),
+            _ => return Err(()),
+        }
+    })
+}
+
 // Creates a document.
 fn create_document(hint: DocumentHint, content: &str) -> Result<Value, ()> {
     match hint {
@@ -140,42 +178,11 @@ fn create_document(hint: DocumentHint, content: &str) -> Result<Value, ()> {
         },
         DocumentHint::String => Ok(Value::String(content.to_owned())),
         DocumentHint::Lua => {
-            let mut lua_content = String::new();
-            lua_content.push_str("ctx:set_output(");
-            lua_content.push_str(content);
-            lua_content.push_str(")\n");
-            let lua = rlua::Lua::new();
             let value =
-                    lua.context(|lua_ctx| {
-                        match lua_ctx.load(command::LUA_PRELUDE).exec() {
-                            Ok(_) => {},
-                            Err(e) => panic!("{}", e),
-                        }
-
-                        let globals = lua_ctx.globals();
-
-                        let ctx: rlua::Table =
-                                match globals.get("ctx") {
-                                    Ok(v) => v,
-                                    Err(e) => panic!("{}", e),
-                                };
-
-                        match lua_ctx.load(&lua_content).exec() {
-                            Ok(_) => {},
-                            Err(e) => panic!("{}", e),
-                        }
-
-                        let outputs: rlua::Table =
-                                match ctx.get("outputs") {
-                                    Ok(v) => v,
-                                    Err(e) => panic!("{}", e),
-                                };
-
-                        match value::from_lua_table(outputs) {
-                            Value::Array(a) => a[0].clone(),
-                            _ => panic!("lua"),
-                        }
-                    });
+                    match create_lua_value(content) {
+                        Ok(v) => v,
+                        Err(_) => panic!("cannot create lua value"),
+                    };
 
             Ok(value)
         },
@@ -472,8 +479,15 @@ fn main() {
                                 Ok(c) => c,
                                 Err(e) => panic!("{}", e),
                             };
-
                     values.push_back(value::from_json_str(&content).unwrap());
+                },
+                FileFormat::Lua => {
+                    let content =
+                            match read_content(&f.path) {
+                                Ok(c) => c,
+                                Err(e) => panic!("{}", e),
+                            };
+                    values.push_back(create_lua_value(&content).unwrap());
                 },
                 FileFormat::Toml => {
                     let content =
@@ -481,7 +495,6 @@ fn main() {
                                 Ok(c) => c,
                                 Err(e) => panic!("{}", e),
                             };
-
                     values.push_back(value::from_toml_str(&content).unwrap());
                 },
                 FileFormat::Yaml => {
@@ -490,7 +503,6 @@ fn main() {
                                 Ok(c) => c,
                                 Err(e) => panic!("{}", e),
                             };
-
                     values.push_back(value::from_yaml_str(&content).unwrap());
                 },
             },
@@ -758,6 +770,10 @@ fn main() {
                                             Err(e) => panic!("{}", e),
                                         }
                                     };
+                            output_content.push_str(&buf);
+                        },
+                        FileFormat::Lua => {
+                            let buf = value::to_lua_string(&val);
                             output_content.push_str(&buf);
                         },
                         FileFormat::Toml => {
