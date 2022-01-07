@@ -2,7 +2,7 @@ const JSON_PATH_SUFFIX: &str = ".json";
 const TOML_PATH_SUFFIX: &str = ".toml";
 const YAML_PATH_SUFFIX: &str = ".yaml";
 
-pub const LUA_PATH_SUFFIX: &str = ".lua";
+// const LUA_PATH_SUFFIX: &str = ".lua";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum FileFormat {
@@ -230,8 +230,8 @@ pub enum Unit {
     Merge(UnitCommand),
     Pack,
     Unpack,
-    Lua(UnitCommand),
-    Template(UnitCommand),
+    Render(UnitCommand),
+    Transform(UnitCommand),
 }
 
 #[cfg(test)]

@@ -22,7 +22,6 @@ use crate::util::{
 
 mod unit;
 use crate::unit::{
-    LUA_PATH_SUFFIX,
     FileFormat,
     DocumentHint,
     UnitDocument,
@@ -286,19 +285,7 @@ fn main() {
                     units.push_back(Unit::Pack);
                 } else if option == "unpack" {
                     units.push_back(Unit::Unpack);
-                } else if option == "lua" {
-                    // With mandatory path.
-                    let path =
-                            match args.pop_front() {
-                                Some(p) => p,
-                                None => {
-                                    eprintln!("missing lua path");
-                                    std::process::exit(10);
-                                },
-                            };
-                    let ucmd = UnitCommand::for_path(&path);
-                    units.push_back(Unit::Lua(ucmd));
-                } else if option == "template" {
+                } else if option == "render" {
                     // With mandatory path.
                     let path =
                             match args.pop_front() {
@@ -309,7 +296,19 @@ fn main() {
                                 },
                             };
                     let ucmd = UnitCommand::for_path(&path);
-                    units.push_back(Unit::Template(ucmd));
+                    units.push_back(Unit::Render(ucmd));
+                } else if option == "transform" {
+                    // With mandatory path.
+                    let path =
+                            match args.pop_front() {
+                                Some(p) => p,
+                                None => {
+                                    eprintln!("missing lua path");
+                                    std::process::exit(10);
+                                },
+                            };
+                    let ucmd = UnitCommand::for_path(&path);
+                    units.push_back(Unit::Transform(ucmd));
                 } else {
                     // A file format -> input or output.
                     let format =
@@ -430,13 +429,8 @@ fn main() {
             }
         } else {
             // The argment is a path.
-            let lc_path = arg.to_lowercase();
-            if lc_path.ends_with(LUA_PATH_SUFFIX) {
-                units.push_back(Unit::Lua(UnitCommand::for_path(&arg)));
-            } else {
-                // Input or output.
-                units.push_back(Unit::File(UnitFile::for_path(&arg)));
-            }
+            // Input or output.
+            units.push_back(Unit::File(UnitFile::for_path(&arg)));
         }
     } // loop
 
@@ -600,7 +594,55 @@ fn main() {
                     }
                 } // loop
             },
-            Unit::Lua(c) => {
+            Unit::Render(c) => {
+                let template = template::Template::for_path(c.path.as_ref().unwrap());
+                let lua = rlua::Lua::new();
+                let input_values = values.clone();
+                values.clear();
+                let output_value =
+                        lua.context(|lua_ctx| {
+                            match lua_ctx.load(command::LUA_PRELUDE).exec() {
+                                Ok(_) => {},
+                                Err(e) => panic!("{}", e),
+                            }
+
+                            let globals = lua_ctx.globals();
+
+                            let ctx: rlua::Table =
+                                    match globals.get("ctx") {
+                                        Ok(v) => v,
+                                        Err(e) => panic!("{}", e),
+                                    };
+
+                            for (_, value) in input_values.iter().enumerate() {
+                                let mut sb = String::new();
+                                sb.push_str("table.insert(ctx.inputs,");
+                                sb.push_str(&value::to_lua_string(&value));
+                                sb.push_str(")");
+                                lua_ctx.load(&sb).exec().unwrap();
+                            } // for
+
+                            match lua_ctx.load(&template.content).exec() {
+                                Ok(_) => {},
+                                Err(e) => panic!("{}", e),
+                            }
+
+                            let outputs: rlua::Table =
+                                    match ctx.get("outputs") {
+                                        Ok(v) => v,
+                                        Err(e) => panic!("{}", e),
+                                    };
+
+                            match outputs.get(1).unwrap() {
+                                rlua::Value::Table(t) => Some(value::from_processed_template(t.clone())),
+                                _ => None,
+                            }
+                        });
+                if let Some(v) = output_value {
+                    values.push_back(Value::String(v));
+                }
+            },
+            Unit::Transform(c) => {
                 let lua_content =
                         match std::fs::read_to_string(c.path.as_ref().unwrap()) {
                             Ok(c) => c,
@@ -647,54 +689,6 @@ fn main() {
                         });
                 if let Value::Array(vals) = output_value {
                     values.extend(vals);
-                }
-            },
-            Unit::Template(c) => {
-                let template = template::Template::for_path(c.path.as_ref().unwrap());
-                let lua = rlua::Lua::new();
-                let input_values = values.clone();
-                values.clear();
-                let output_value =
-                        lua.context(|lua_ctx| {
-                            match lua_ctx.load(command::LUA_PRELUDE).exec() {
-                                Ok(_) => {},
-                                Err(e) => panic!("{}", e),
-                            }
-
-                            let globals = lua_ctx.globals();
-
-                            let ctx: rlua::Table =
-                                    match globals.get("ctx") {
-                                        Ok(v) => v,
-                                        Err(e) => panic!("{}", e),
-                                    };
-
-                            for (_, value) in input_values.iter().enumerate() {
-                                let mut sb = String::new();
-                                sb.push_str("table.insert(ctx.inputs,");
-                                sb.push_str(&value::to_lua_string(&value));
-                                sb.push_str(")");
-                                lua_ctx.load(&sb).exec().unwrap();
-                            } // for
-
-                            match lua_ctx.load(&template.content).exec() {
-                                Ok(_) => {},
-                                Err(e) => panic!("{}", e),
-                            }
-
-                            let outputs: rlua::Table =
-                                    match ctx.get("outputs") {
-                                        Ok(v) => v,
-                                        Err(e) => panic!("{}", e),
-                                    };
-
-                            match outputs.get(1).unwrap() {
-                                rlua::Value::Table(t) => Some(value::from_processed_template(t.clone())),
-                                _ => None,
-                            }
-                        });
-                if let Some(v) = output_value {
-                    values.push_back(Value::String(v));
                 }
             },
             _ => {

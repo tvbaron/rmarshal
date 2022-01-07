@@ -1,7 +1,7 @@
 require_relative '../app_helper'
 
-describe 'template' do
-  context = AppHelper.new_context('template')
+describe 'render' do
+  context = AppHelper.new_context('render')
 
   before :all do
     AppHelper.make_dir(AppHelper.tmpdir)
@@ -17,7 +17,7 @@ describe 'template' do
     end
 
     it 'renders' do
-      AppHelper.exec_prog ["#{context.datadir}/input01.json", "--template", "#{context.datadir}/template01.txt", "#{AppHelper.tmpdir}/out.txt"]
+      AppHelper.exec_prog ["#{context.datadir}/input01.json", "--render", "#{context.datadir}/template01.txt", "#{AppHelper.tmpdir}/out.txt"]
       expect(File.read("#{AppHelper.tmpdir}/out.txt")).to eq(File.read("#{context.datadir}/expect01.txt"))
     end
   end
@@ -29,7 +29,7 @@ describe 'template' do
 
     it 'renders' do
       sb = StringIO.new
-      AppHelper.exec_prog ["#{context.datadir}/input01.json", "--template", "#{context.datadir}/template01.txt", "--any", "-"], :stdout => sb
+      AppHelper.exec_prog ["#{context.datadir}/input01.json", "--render", "#{context.datadir}/template01.txt", "--any", "-"], :stdout => sb
       expect(sb.string).to eq(File.read("#{context.datadir}/expect01.txt"))
     end
   end
