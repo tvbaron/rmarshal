@@ -114,6 +114,8 @@ pub struct UnitFile {
     pub fix: Option<bool>,
     // The JSON pretty format.
     pub pretty: Option<bool>,
+    // For multiple documents within the same file.
+    pub stream: Option<isize>,
 }
 
 impl UnitFile {
@@ -125,6 +127,7 @@ impl UnitFile {
             eol: None,
             fix: None,
             pretty: None,
+            stream: None,
         }
     }
 
@@ -144,6 +147,7 @@ impl UnitFile {
             eol: None,
             fix: None,
             pretty: None,
+            stream: None,
         }
     }
 
@@ -178,6 +182,14 @@ impl UnitFile {
             false
         }
     }
+
+    // pub fn has_stream(&self) -> bool {
+    //     if let Some(_) = self.stream {
+    //         true
+    //     } else {
+    //         false
+    //     }
+    // }
 }
 
 #[derive(Debug, Default)]

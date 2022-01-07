@@ -21,19 +21,9 @@ describe 'copy:yaml' do
       expect(File.read("#{AppHelper.tmpdir}/out.yaml")).to eq(File.read("#{context.datadir}/expect01.yaml"))
     end
 
-    it 'copies (eol)' do
-      AppHelper.exec_prog ["#{context.datadir}/input01.yaml", "--copy", "--yaml", "--eol", "#{AppHelper.tmpdir}/out.yaml"]
-      expect(File.read("#{AppHelper.tmpdir}/out.yaml")).to eq(File.read("#{context.datadir}/expect01.yaml"))
-    end
-
     it 'copies (dots)' do
       AppHelper.exec_prog ["#{context.datadir}/input01.yaml", "--copy", "--yaml", "--dots", "#{AppHelper.tmpdir}/out.yaml"]
       expect(File.read("#{AppHelper.tmpdir}/out.yaml")).to eq(File.read("#{context.datadir}/expect02.yaml"))
-    end
-
-    it 'copies (dots, eol)' do
-      AppHelper.exec_prog ["#{context.datadir}/input01.yaml", "--copy", "--yaml", "--dots", "--eol", "#{AppHelper.tmpdir}/out.yaml"]
-      expect(File.read("#{AppHelper.tmpdir}/out.yaml")).to eq(File.read("#{context.datadir}/expect03.yaml"))
     end
   end
 
@@ -48,22 +38,10 @@ describe 'copy:yaml' do
       expect(sb.string).to eq(File.read("#{context.datadir}/expect01.yaml"))
     end
 
-    it 'copies (eol)' do
-      sb = StringIO.new
-      AppHelper.exec_prog ["#{context.datadir}/input01.yaml", "--copy", "--yaml", "--eol", "-"], :stdout => sb
-      expect(sb.string).to eq(File.read("#{context.datadir}/expect01.yaml"))
-    end
-
     it 'copies (dots)' do
       sb = StringIO.new
       AppHelper.exec_prog ["#{context.datadir}/input01.yaml", "--copy", "--yaml", "--dots", "-"], :stdout => sb
       expect(sb.string).to eq(File.read("#{context.datadir}/expect02.yaml"))
-    end
-
-    it 'copies (dots, eol)' do
-      sb = StringIO.new
-      AppHelper.exec_prog ["#{context.datadir}/input01.yaml", "--copy", "--yaml", "--dots", "--eol", "-"], :stdout => sb
-      expect(sb.string).to eq(File.read("#{context.datadir}/expect03.yaml"))
     end
   end
 
@@ -82,16 +60,6 @@ EOS
       expect(File.read("#{AppHelper.tmpdir}/out.yaml")).to eq(File.read("#{context.datadir}/expect01.yaml"))
     end
 
-    it 'copies (eol)' do
-      sb = StringIO.new
-      sb.puts <<EOS
----
-name: Althea
-EOS
-      AppHelper.exec_prog ["--yaml", "-", "--copy", "--yaml", "--eol", "#{AppHelper.tmpdir}/out.yaml"], :stdin => sb
-      expect(File.read("#{AppHelper.tmpdir}/out.yaml")).to eq(File.read("#{context.datadir}/expect01.yaml"))
-    end
-
     it 'copies (dots)' do
       sb = StringIO.new
       sb.puts <<EOS
@@ -100,16 +68,6 @@ name: Althea
 EOS
       AppHelper.exec_prog ["--yaml", "-", "--copy", "--yaml", "--dots", "#{AppHelper.tmpdir}/out.yaml"], :stdin => sb
       expect(File.read("#{AppHelper.tmpdir}/out.yaml")).to eq(File.read("#{context.datadir}/expect02.yaml"))
-    end
-
-    it 'copies (dots, eol)' do
-      sb = StringIO.new
-      sb.puts <<EOS
----
-name: Althea
-EOS
-      AppHelper.exec_prog ["--yaml", "-", "--copy", "--yaml", "--dots", "--eol", "#{AppHelper.tmpdir}/out.yaml"], :stdin => sb
-      expect(File.read("#{AppHelper.tmpdir}/out.yaml")).to eq(File.read("#{context.datadir}/expect03.yaml"))
     end
   end
 
@@ -129,17 +87,6 @@ EOS
       expect(so.string).to eq(File.read("#{context.datadir}/expect01.yaml"))
     end
 
-    it 'copies (eol)' do
-      si = StringIO.new
-      si.puts <<EOS
----
-name: Althea
-EOS
-      so = StringIO.new
-      AppHelper.exec_prog ["--yaml", "-", "--copy", "--yaml", "--eol", "-"], :stdin => si, :stdout => so
-      expect(so.string).to eq(File.read("#{context.datadir}/expect01.yaml"))
-    end
-
     it 'copies (dots)' do
       si = StringIO.new
       si.puts <<EOS
@@ -149,17 +96,6 @@ EOS
       so = StringIO.new
       AppHelper.exec_prog ["--yaml", "-", "--copy", "--yaml", "--dots", "-"], :stdin => si, :stdout => so
       expect(so.string).to eq(File.read("#{context.datadir}/expect02.yaml"))
-    end
-
-    it 'copies (dots, eol)' do
-      si = StringIO.new
-      si.puts <<EOS
----
-name: Althea
-EOS
-      so = StringIO.new
-      AppHelper.exec_prog ["--yaml", "-", "--copy", "--yaml", "--dots", "--eol", "-"], :stdin => si, :stdout => so
-      expect(so.string).to eq(File.read("#{context.datadir}/expect03.yaml"))
     end
   end
 end

@@ -190,6 +190,7 @@ fn create_document(hint: DocumentHint, content: &str) -> Result<Value, ()> {
  * - UNKNOWN_FILE_FORMAT(11)
  * - NO_INPUT(20)
  * - WRONG_INPUT(21)
+ * - WRONG_OUTPUT(31)
  */
 fn main() {
     // (1ofx) Parse arguments.
@@ -342,6 +343,28 @@ fn main() {
                         } else if next_opt == "--pretty" {
                             args.pop_front();
                             ufile.pretty = Some(true);
+                        } else if next_opt.starts_with("--stream") || next_opt.starts_with("-s") {
+                            let opt =
+                                    match FlaggedOption::from_str(&args.pop_front().unwrap()) {
+                                        Ok(o) => o,
+                                        Err(_) => {
+                                            eprintln!("wrong parameter");
+                                            std::process::exit(10);
+                                        },
+                                    };
+                            match opt.value {
+                                Some(v) => {
+                                    let limit = v.parse::<isize>().unwrap();
+                                    #[cfg(feature = "debug")]
+                                    eprintln!("option: stream {}", limit);
+                                    ufile.stream = Some(limit);
+                                },
+                                None => {
+                                    #[cfg(feature = "debug")]
+                                    eprintln!("option: stream");
+                                    ufile.stream = Some(-1);
+                                },
+                            }
                         } else {
                             ufile.path = args.pop_front().unwrap();
                             break;
@@ -689,101 +712,98 @@ fn main() {
                     None => break,
                 };
         match unit {
-            Unit::File(f) => match f.format {
-                FileFormat::Unknown => {
-                    let val = values.pop_front().unwrap();
-                    let mut output_content =
-                            match val {
-                                Value::Nil => "~".to_owned(),
-                                Value::Boolean(v) => format!("{}", v),
-                                Value::Integer(v) => format!("{}", v),
-                                Value::Float(v) => format!("{}", v),
-                                Value::String(v) => v.clone(),
-                                _ => panic!("wtf"),
+            Unit::File(f) => {
+                // The number of values to process.
+                let mut val_cnt =
+                        match f.stream {
+                            Some(s) => s,
+                            None => 1,
+                        };
+                let mut output_content = String::new();
+                while val_cnt != 0 {
+                    let val =
+                            match values.pop_front() {
+                                Some(v) => v,
+                                None => {
+                                    if val_cnt < 0 {
+                                        // Infinite stream: stop because there is no more value to process.
+                                        break;
+                                    } else {
+                                        // Finite stream: error.
+                                        eprintln!("wrong output");
+                                        std::process::exit(31);
+                                    }
+                                }
                             };
-
+                    if val_cnt > 0 {
+                        val_cnt -= 1;
+                    }
+                    match f.format {
+                        FileFormat::Unknown => {
+                            let buf =
+                                    match val {
+                                        Value::Nil => "~".to_owned(),
+                                        Value::Boolean(v) => format!("{}", v),
+                                        Value::Integer(v) => format!("{}", v),
+                                        Value::Float(v) => format!("{}", v),
+                                        Value::String(v) => v.clone(),
+                                        _ => panic!("wtf"),
+                                    };
+                            output_content.push_str(&buf);
+                        },
+                        FileFormat::Json => {
+                            let buf =
+                                    if f.has_pretty() {
+                                        match serde_json::to_string_pretty(&val) {
+                                            Ok(c) => c,
+                                            Err(e) => panic!("{}", e),
+                                        }
+                                    } else {
+                                        match serde_json::to_string(&val) {
+                                            Ok(c) => c,
+                                            Err(e) => panic!("{}", e),
+                                        }
+                                    };
+                            output_content.push_str(&buf);
+                        },
+                        FileFormat::Toml => {
+                            let fixed_val =
+                                    if f.has_fix() {
+                                        value::fix_toml(&val)
+                                    } else {
+                                        val
+                                    };
+                            let buf =
+                                    match toml::to_string(&fixed_val) {
+                                        Ok(c) => c,
+                                        Err(e) => panic!("{}", e),
+                                    };
+                            output_content.push_str(&buf);
+                        },
+                        FileFormat::Yaml => {
+                            let buf =
+                                    match serde_yaml::to_string(&val) {
+                                        Ok(c) => c,
+                                        Err(e) => panic!("{}", e),
+                                    };
+                            output_content.push_str(&buf);
+                            if f.has_dots() {
+                                output_content.push_str("...\n");
+                            }
+                        },
+                    } // match f.format
                     if f.has_eol() && !output_content.ends_with("\n") {
                         output_content.push('\n');
                     }
-                    if f.path == STDIO_PLACEHOLDER {
-                        print!("{}", output_content);
-                    } else {
-                        match std::fs::write(f.path, output_content) {
-                            Ok(_) => {},
-                            Err(e) => panic!("{}", e),
-                        }
+                } // while
+                if f.path == STDIO_PLACEHOLDER {
+                    print!("{}", output_content);
+                } else {
+                    match std::fs::write(f.path, output_content) {
+                        Ok(_) => {},
+                        Err(e) => panic!("{}", e),
                     }
-                },
-                FileFormat::Json => {
-                    let v = values.pop_front().unwrap();
-                    let mut output_content =
-                            if f.has_pretty() {
-                                match serde_json::to_string_pretty(&v) {
-                                    Ok(c) => c,
-                                    Err(e) => panic!("{}", e),
-                                }
-                            } else {
-                                match serde_json::to_string(&v) {
-                                    Ok(c) => c,
-                                    Err(e) => panic!("{}", e),
-                                }
-                            };
-                    if f.has_eol() {
-                        output_content.push('\n');
-                    }
-                    if f.path == STDIO_PLACEHOLDER {
-                        print!("{}", output_content);
-                    } else {
-                        match std::fs::write(f.path, output_content) {
-                            Ok(_) => {},
-                            Err(e) => panic!("{}", e),
-                        }
-                    }
-                },
-                FileFormat::Toml => {
-                    let v = values.pop_front().unwrap();
-                    let v =
-                            if f.has_fix() {
-                                value::fix_toml(&v)
-                            } else {
-                                v
-                            };
-                    let output_content =
-                            match toml::to_string(&v) {
-                                Ok(c) => c,
-                                Err(e) => panic!("{}", e),
-                            };
-                    if f.path == STDIO_PLACEHOLDER {
-                        print!("{}", output_content);
-                    } else {
-                        match std::fs::write(f.path, output_content) {
-                            Ok(_) => {},
-                            Err(e) => panic!("{}", e),
-                        }
-                    }
-                },
-                FileFormat::Yaml => {
-                    let v = values.pop_front().unwrap();
-                    let mut output_content =
-                            match serde_yaml::to_string(&v) {
-                                Ok(c) => c,
-                                Err(e) => panic!("{}", e),
-                            };
-                    if f.has_dots() {
-                        output_content.push_str("...");
-                    }
-                    if f.has_eol() && !output_content.ends_with("\n") {
-                        output_content.push('\n');
-                    }
-                    if f.path == STDIO_PLACEHOLDER {
-                        print!("{}", output_content);
-                    } else {
-                        match std::fs::write(f.path, output_content) {
-                            Ok(_) => {},
-                            Err(e) => panic!("{}", e),
-                        }
-                    }
-                },
+                }
             },
             _ => {
                 units.push_front(unit);
