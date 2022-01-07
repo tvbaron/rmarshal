@@ -99,10 +99,10 @@ Any trailing whitespace are removed if the directive ends with `-%>`.
 
     rmarshal in1.json in2.toml in3.yaml --merge out.json
 
-### Edit a file with a Lua script
+### Transform a document with a Lua script
 
-    rmarshal sample.json --lua script.lua out.json
+    rmarshal sample.json --transform script.lua out.json
 
 ### Render a template
 
-    rmarshal sample.json --template report.templ out.txt
+    rmarshal sample.json --render report.templ out.txt
