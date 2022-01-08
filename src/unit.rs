@@ -186,13 +186,13 @@ impl UnitFile {
         }
     }
 
-    // pub fn has_stream(&self) -> bool {
-    //     if let Some(_) = self.stream {
-    //         true
-    //     } else {
-    //         false
-    //     }
-    // }
+    pub fn has_stream(&self) -> bool {
+        if let Some(_) = self.stream {
+            true
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Debug, Default)]

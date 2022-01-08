@@ -37,6 +37,7 @@ use crate::value::Value;
 
 mod command;
 mod template;
+mod yaml;
 
 const STDIO_PLACEHOLDER: &str = "-";
 
@@ -561,12 +562,31 @@ fn main() {
                     values.push_back(value::from_toml_str(&content).unwrap());
                 },
                 FileFormat::Yaml => {
-                    let content =
-                            match read_content(&f.path) {
-                                Ok(c) => c,
-                                Err(e) => panic!("{}", e),
-                            };
-                    values.push_back(value::from_yaml_str(&content).unwrap());
+                    if f.has_stream() {
+                        let content =
+                                match read_content(&f.path) {
+                                    Ok(c) => c,
+                                    Err(e) => panic!("{}", e),
+                                };
+                        let docs =
+                                match yaml::read_stream(&content) {
+                                    Ok(c) => c,
+                                    Err(_) => {
+                                        eprintln!("wrong input");
+                                        std::process::exit(21);
+                                    },
+                                };
+                        for doc in docs.iter() {
+                            values.push_back(value::from_yaml_str(&doc).unwrap());
+                        } // for
+                    } else {
+                        let content =
+                                match read_content(&f.path) {
+                                    Ok(c) => c,
+                                    Err(e) => panic!("{}", e),
+                                };
+                        values.push_back(value::from_yaml_str(&content).unwrap());
+                    }
                 },
             },
             _ => {
@@ -885,7 +905,7 @@ fn main() {
         }
     } // loop
 
-    if !units.is_empty() {
+    if !values.is_empty() || !units.is_empty() {
         eprintln!("no output");
         std::process::exit(30);
     }
