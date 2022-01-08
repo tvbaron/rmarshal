@@ -11,6 +11,8 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::VecDeque;
 
+mod help;
+
 mod util;
 use crate::util::{
     LONG_OPTION_PREFIX,
@@ -41,7 +43,6 @@ const STDIO_PLACEHOLDER: &str = "-";
 const HELP_CMD: &str = "--help";
 const VERSION_CMD: &str = "--version";
 
-const PROGRAM: &str = "rmarshal";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // Reads the content of a file.
@@ -196,12 +197,14 @@ fn create_document(hint: DocumentHint, content: &str) -> Result<Value, ()> {
  * - UNKNOWN_FILE_FORMAT(11)
  * - NO_INPUT(20)
  * - WRONG_INPUT(21)
+ * - NO_OUTPUT(30)
  * - WRONG_OUTPUT(31)
  */
 fn main() {
     // (1ofx) Parse arguments.
     let mut units: VecDeque<Unit> = VecDeque::new();
     let mut args: VecDeque<String> = std::env::args().skip(1).collect();
+    // Handle '--version' and '--help [TOPIC]'.
     match args.len() {
         0 => {
             eprintln!("wrong parameter");
@@ -210,11 +213,32 @@ fn main() {
         1 => {
             match args.front().unwrap().as_str() {
                 HELP_CMD => {
-                    println!("Usage: {} [INPUT...] COMMAND [OUTPUT...]", PROGRAM);
+                    println!("{}", help::GLOBAL_HELP);
                     std::process::exit(0);
                 },
                 VERSION_CMD => {
-                    println!("{} {}", PROGRAM, VERSION);
+                    println!("rmarshal {}", VERSION);
+                    std::process::exit(0);
+                },
+                _ => {},
+            }
+        },
+        2 => {
+            match args.front().unwrap().as_str() {
+                HELP_CMD => {
+                    args.pop_front();
+                    match args.pop_front().unwrap().as_str() {
+                        "check" => println!("{}", help::CHECK_HELP),
+                        "concat" => println!("{}", help::CONCAT_HELP),
+                        "copy" => println!("{}", help::COPY_HELP),
+                        "document" => println!("{}", help::DOCUMENT_HELP),
+                        "merge" => println!("{}", help::MERGE_HELP),
+                        "pack" => println!("{}", help::PACK_HELP),
+                        "render" => println!("{}", help::RENDER_HELP),
+                        "transform" => println!("{}", help::TRANSFORM_HELP),
+                        "unpack" => println!("{}", help::UNPACK_HELP),
+                        _ => println!("{}", help::TOPIC_HELP),
+                    }
                     std::process::exit(0);
                 },
                 _ => {},
@@ -244,7 +268,19 @@ fn main() {
             }
 
             if let Some(option) = arg.get(LONG_OPTION_PREFIX_LEN..) {
-                if option == "check" {
+                if option == "document" {
+                    let hint = args.pop_front().unwrap();
+                    let spec = args.pop_front().unwrap();
+                    let doc =
+                            match UnitDocument::for_hint(&hint, &spec) {
+                                Ok(d) => d,
+                                Err(_) => {
+                                    eprintln!("wrong parameter");
+                                    std::process::exit(10);
+                                },
+                            };
+                    units.push_back(Unit::Document(doc));
+                } else if option == "check" {
                     units.push_back(Unit::Check);
                 } else if option == "copy" {
                     units.push_back(Unit::Copy);
@@ -821,4 +857,9 @@ fn main() {
             },
         }
     } // loop
+
+    if !units.is_empty() {
+        eprintln!("no output");
+        std::process::exit(30);
+    }
 }
