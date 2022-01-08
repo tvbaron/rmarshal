@@ -237,6 +237,7 @@ fn main() {
                         "render" => println!("{}", help::RENDER_HELP),
                         "transform" => println!("{}", help::TRANSFORM_HELP),
                         "unpack" => println!("{}", help::UNPACK_HELP),
+                        "yaml" => println!("{}", help::YAML_HELP),
                         _ => println!("{}", help::TOPIC_HELP),
                     }
                     std::process::exit(0);

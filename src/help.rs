@@ -197,3 +197,22 @@ Write multiple documents, at least one.
 Example:
     rmarshal doc.yaml --unpack out1.json out2.toml out3.yaml
 "#;
+
+pub const YAML_HELP: &str = r#"Usage: rmarshal --yaml [OPTION...] PATH COMMAND --yaml [OPTION...] PATH
+
+Define a file with YAML document(s).
+
+Available options:
+        --dots                  Add the trailing 3 dots at the end of each document. Output only.
+    -s, --stream[=LIMIT]        Allow multiple documents with a single file.
+
+Example:
+    cat doc.yaml
+            ---
+            msg: hi
+    rmarshal --yaml doc.yaml --copy --yaml --dots out.yaml
+    cat out.yaml
+            ---
+            msg: hi
+            ...
+"#;
