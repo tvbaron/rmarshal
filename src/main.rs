@@ -426,7 +426,9 @@ fn main() {
             let is_long = arg.len() > (SHORT_OPTION_PREFIX_LEN + 1);
             let option = arg.get(SHORT_OPTION_PREFIX_LEN..SHORT_OPTION_PREFIX_LEN + 1).unwrap();
 
-            if option == "D" {
+            if option == "C" {
+                units.push_back(Unit::Copy);
+            } else if option == "D" {
                 // A Document.
                 if arg.len() > (SHORT_OPTION_PREFIX_LEN + 2) {
                     // Very long. Everything is concatenated.
@@ -467,6 +469,30 @@ fn main() {
                             };
                     units.push_back(Unit::Document(doc));
                 }
+            } else if option == "R" {
+                // With mandatory path.
+                let path =
+                        match args.pop_front() {
+                            Some(p) => p,
+                            None => {
+                                eprintln!("missing template path");
+                                std::process::exit(10);
+                            },
+                        };
+                let ucmd = UnitCommand::for_path(&path);
+                units.push_back(Unit::Render(ucmd));
+            } else if option == "T" {
+                // With mandatory path.
+                let path =
+                        match args.pop_front() {
+                            Some(p) => p,
+                            None => {
+                                eprintln!("missing lua path");
+                                std::process::exit(10);
+                            },
+                        };
+                let ucmd = UnitCommand::for_path(&path);
+                units.push_back(Unit::Transform(ucmd));
             } else {
                 eprintln!("wrong parameter");
                 std::process::exit(10);
