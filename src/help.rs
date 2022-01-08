@@ -204,7 +204,7 @@ Define a file with YAML document(s).
 
 Available options:
         --dots                  Add the trailing 3 dots at the end of each document. Output only.
-    -s, --stream[=LIMIT]        Allow multiple documents with a single file.
+    -s, --stream[=LIMIT]        Allow multiple documents within a single file.
 
 Example:
     cat doc.yaml

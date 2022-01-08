@@ -22,7 +22,8 @@ _rmarshal_ is a document processor.
                                 | <whitespace> "--stream" <opt_stream_limit> <opt_format_modifiers>
     <opt_stream_limit>        ::= ""
                                 | "=" <integer>
-    <document>                ::= "-D" <whitespace> <document_hint_long> <whitespace> <text>
+    <document>                ::= "--document" <whitespace> <document_hint_long> <whitespace> <text>
+                                | "-D" <whitespace> <document_hint_long> <whitespace> <text>
                                 | "-D" <document_hint_short> <opt_whitespace> <text>
     <document_hint_long>      ::= "any"
                                 | "nil"

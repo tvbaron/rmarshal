@@ -340,6 +340,11 @@ fn main() {
                                     std::process::exit(10);
                                 },
                             };
+                    if path != STDIO_PLACEHOLDER && path.starts_with(STDIO_PLACEHOLDER) {
+                        eprintln!("wrong template path");
+                        std::process::exit(10);
+                    }
+
                     let ucmd = UnitCommand::for_path(&path);
                     units.push_back(Unit::Render(ucmd));
                 } else if option == "transform" {
@@ -352,6 +357,11 @@ fn main() {
                                     std::process::exit(10);
                                 },
                             };
+                    if path != STDIO_PLACEHOLDER && path.starts_with(STDIO_PLACEHOLDER) {
+                        eprintln!("wrong lua path");
+                        std::process::exit(10);
+                    }
+
                     let ucmd = UnitCommand::for_path(&path);
                     units.push_back(Unit::Transform(ucmd));
                 } else {
@@ -410,7 +420,13 @@ fn main() {
                                 },
                             }
                         } else {
-                            ufile.path = args.pop_front().unwrap();
+                            let path = args.pop_front().unwrap();
+                            if path != STDIO_PLACEHOLDER && path.starts_with(STDIO_PLACEHOLDER) {
+                                eprintln!("wrong path");
+                                std::process::exit(10);
+                            }
+
+                            ufile.path = path;
                             break;
                         }
                     } // loop
@@ -480,6 +496,11 @@ fn main() {
                                 std::process::exit(10);
                             },
                         };
+                if path != STDIO_PLACEHOLDER && path.starts_with(STDIO_PLACEHOLDER) {
+                    eprintln!("wrong template path");
+                    std::process::exit(10);
+                }
+
                 let ucmd = UnitCommand::for_path(&path);
                 units.push_back(Unit::Render(ucmd));
             } else if option == "T" {
@@ -492,6 +513,11 @@ fn main() {
                                 std::process::exit(10);
                             },
                         };
+                if path != STDIO_PLACEHOLDER && path.starts_with(STDIO_PLACEHOLDER) {
+                    eprintln!("wrong lua path");
+                    std::process::exit(10);
+                }
+
                 let ucmd = UnitCommand::for_path(&path);
                 units.push_back(Unit::Transform(ucmd));
             } else {
