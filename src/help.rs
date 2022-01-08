@@ -106,15 +106,32 @@ Write one document.
 
 Example:
     cat doc1.json
+            {"msg":"hi","values":{"a":1,"b":2}}
     cat doc2.toml
+            level = 1
     cat doc3.yaml
+            ---
+            msg: hello
+            values:
+              b: 3
+              c: 4
     rmarshal doc1.json doc2.toml doc3.yaml --merge out1.yaml
     cat out1.yaml
-    cat doc4.json
-    cat doc5.toml
-    cat doc6.yaml
-    rmarshal doc4.json doc5.toml doc6.yaml --merge --depth 1 out2.yaml
+            ---
+            msg: hello
+            values:
+              a: 1
+              b: 3
+              c: 4
+            level: 1
+    rmarshal doc1.json doc2.toml doc3.yaml --merge --depth 1 out2.yaml
     cat out2.yaml
+            ---
+            msg: hello
+            values:
+              b: 3
+              c: 4
+            level: 1
 "#;
 
 pub const PACK_HELP: &str = r#"Usage: rmarshal INPUT... --pack OUTPUT
