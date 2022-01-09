@@ -559,9 +559,13 @@ fn main() {
                 values.push_back(value);
             },
             Unit::File(f) => match f.format {
-                FileFormat::Unknown => {
-                    eprintln!("wrong input");
-                    std::process::exit(21);
+                FileFormat::Plain => {
+                    let content =
+                            match read_content(&f.path) {
+                                Ok(c) => c,
+                                Err(e) => panic!("{}", e),
+                            };
+                    values.push_back(Value::String(content));
                 },
                 FileFormat::Json => {
                     let content =
@@ -827,7 +831,7 @@ fn main() {
                     None => break,
                 };
         match unit {
-            Unit::File(f) => {
+            Unit::File(ref f) => {
                 // The number of values to process.
                 let mut val_cnt =
                         match f.stream {
@@ -854,7 +858,7 @@ fn main() {
                         val_cnt -= 1;
                     }
                     match f.format {
-                        FileFormat::Unknown => {
+                        FileFormat::Plain => {
                             let buf =
                                     match val {
                                         Value::Nil => "~".to_owned(),
@@ -918,7 +922,7 @@ fn main() {
                 if f.path == STDIO_PLACEHOLDER {
                     print!("{}", output_content);
                 } else {
-                    match std::fs::write(f.path, output_content) {
+                    match std::fs::write(&f.path, output_content) {
                         Ok(_) => {},
                         Err(e) => panic!("{}", e),
                     }

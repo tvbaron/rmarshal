@@ -5,7 +5,7 @@ const YAML_PATH_SUFFIX: &str = ".yaml";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum FileFormat {
-    Unknown,
+    Plain,
     Json,
     Lua,
     Toml,
@@ -14,7 +14,7 @@ pub enum FileFormat {
 
 impl Default for FileFormat {
     fn default() -> Self {
-        FileFormat::Unknown
+        FileFormat::Plain
     }
 }
 
@@ -30,14 +30,14 @@ impl FileFormat {
         } else if lc_path.ends_with(YAML_PATH_SUFFIX) {
             FileFormat::Yaml
         } else {
-            FileFormat::Unknown
+            FileFormat::Plain
         }
     }
 
     // Returns a FileFormat for a given string representation.
     pub fn for_str(format: &str) -> Result<Self, ()> {
         match format {
-            "any" => Ok(FileFormat::Unknown),
+            "plain" => Ok(FileFormat::Plain),
             "json" => Ok(FileFormat::Json),
             "lua" => Ok(FileFormat::Lua),
             "toml" => Ok(FileFormat::Toml),
@@ -274,7 +274,7 @@ mod tests {
             #[test]
             fn it_create_txt() {
                 let txt = FileFormat::for_path("yo.txt");
-                assert_eq!(txt, FileFormat::Unknown);
+                assert_eq!(txt, FileFormat::Plain);
             }
         }
 
@@ -282,9 +282,9 @@ mod tests {
             use super::*;
 
             #[test]
-            fn it_create_any() {
-                let any = FileFormat::for_str("any");
-                assert_eq!(any, Ok(FileFormat::Unknown));
+            fn it_create_plain() {
+                let plain = FileFormat::for_str("plain");
+                assert_eq!(plain, Ok(FileFormat::Plain));
             }
 
             #[test]
