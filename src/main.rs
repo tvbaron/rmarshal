@@ -179,11 +179,20 @@ fn create_document(hint: DocumentHint, content: &str) -> Result<Value, ()> {
             Ok(Value::Float(val))
         },
         DocumentHint::String => Ok(Value::String(content.to_owned())),
+        DocumentHint::Json => {
+            let value =
+                    match value::from_json_str(content) {
+                        Ok(v) => v,
+                        Err(_) => return Err(()),
+                    };
+
+            Ok(value)
+        },
         DocumentHint::Lua => {
             let value =
                     match create_lua_value(content) {
                         Ok(v) => v,
-                        Err(_) => panic!("cannot create lua value"),
+                        Err(_) => return Err(()),
                     };
 
             Ok(value)

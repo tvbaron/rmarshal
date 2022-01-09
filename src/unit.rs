@@ -45,10 +45,6 @@ impl FileFormat {
             _ => Err(()),
         }
     }
-
-    // pub fn is_known(&self) -> bool {
-    //     *self != FileFormat::Unknown
-    // }
 }
 
 #[derive(Debug)]
@@ -59,6 +55,7 @@ pub enum DocumentHint {
     Integer,
     Float,
     String,
+    Json,
     Lua,
 }
 
@@ -78,6 +75,7 @@ impl DocumentHint {
             "I" | "integer" => Ok(DocumentHint::Integer),
             "F" | "float" => Ok(DocumentHint::Float),
             "S" | "string" => Ok(DocumentHint::String),
+            "J" | "json" => Ok(DocumentHint::Json),
             "L" | "lua" => Ok(DocumentHint::Lua),
             _ => Err(()),
         }

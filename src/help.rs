@@ -88,7 +88,8 @@ Available hints:
     I, integer          Interpret the value as integer type.
     F, float            Interpret the value as float type.
     S, string           Interpret the value as string type.
-    L, lua              Interpret the value as a lua document.
+    J, json             Interpret the value as a JSON document.
+    L, lua              Interpret the value as a Lua document.
 
 Examples:
     rmarshal --document string Hello --copy --yaml -
