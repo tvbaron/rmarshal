@@ -8,6 +8,7 @@ repository = "https://github.com/tvbaron/rmarshal"
 license = "MIT"
 description = "Document remarshaller."
 readme = "README.md"
+exclude = ["Rakefile", "test/**"]
 
 [dependencies]
 indexmap = "1.8"
