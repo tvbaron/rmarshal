@@ -25,7 +25,7 @@ Available commands:
 
 Available input/output:
         PATH                            A file. The format is inferred from the extension.
-        --FORMAT [OPTION...] PATH       A file. FORMAT may be json, lua, toml or yaml.
+        --FORMAT [OPTION...] PATH       A file. FORMAT may be plain, json, lua, toml or yaml.
     -D, --document HINT VALUE           A inline document. Input only.
 "#;
 
@@ -42,9 +42,9 @@ Available topics:
     lua                 Define a file with a Lua document.
     merge               Command to merge multiple documents.
     pack                Command to create one array-based document from multiple documents.
+    plain               Define a file with a string-based document.
     render              Command to render a template with multiple documents.
     toml                Define a file with a TOML document.
-    topic               The list of availables topics.
     transform           Command to transform multiple documents with a Lua script.
     unpack              Command to create multiple documents from one array-based document.
     yaml                Define a file with YAML document(s).
@@ -99,6 +99,48 @@ Examples:
             Hi
 "#;
 
+pub const JSON_HELP: &str = r#"Usage: rmarshal --json [OPTION...] PATH COMMAND --json [OPTION...] PATH
+
+Define a file with a JSON document.
+
+Available options:
+        --eol                   Add a trailing newline character at the end of each document. Output only.
+        --pretty                Activate pretty format. Output only.
+    -s, --stream[=LIMIT]        Allow multiple documents within a single file. Output only.
+
+Example:
+    cat doc.json
+            {"msg":"hi","values":{"a":1,"b":2}}
+    rmarshal --json doc.json --copy --json --pretty --eol out.json
+    cat out.json
+            {
+              "msg": "hi",
+              "values": {
+                "a": 1,
+                "b": 2
+              }
+            }
+"#;
+
+pub const LUA_HELP: &str = r#"Usage: rmarshal --lua [OPTION...] PATH COMMAND --lua [OPTION...] PATH
+
+Define a file with a LUA document.
+
+Available options:
+        --eol                   Add a trailing newline character at the end of each document. Output only.
+    -s, --stream[=LIMIT]        Allow multiple documents within a single file. Output only.
+
+Example:
+    cat doc.lua
+            Object:new({
+                { "msg", "Hello" },
+                { "values", Array:new({ 1, 2, 3 }) },
+            })
+    rmarshal --lua doc.lua --copy --lua --eol out.lua
+    cat out.lua
+            Object:new({{"msg","Hello"},{"values",Array:new({1,2,3,})},})
+"#;
+
 pub const MERGE_HELP: &str = r#"Usage: rmarshal INPUT... --merge [--depth VALUE] OUTPUT
 
 Read multiple documents, at least one.
@@ -143,6 +185,24 @@ Example:
     rmarshal doc1.json doc2.toml doc3.yaml --pack out.yaml
 "#;
 
+pub const PLAIN_HELP: &str = r#"Usage: rmarshal --plain [OPTION...] PATH COMMAND --plain [OPTION...] PATH
+
+Define a plain file with a string-based document.
+
+Available options:
+        --eol                   Add a trailing newline character at the end of each document. Output only.
+    -s, --stream[=LIMIT]        Allow multiple documents within a single file. Output only.
+
+Example:
+    cat doc.toml
+            [package]
+            name = "rmarshal"
+    rmarshal --plain doc.toml --copy --plain -
+    cat out.toml
+            [package]
+            name = "rmarshal"
+"#;
+
 pub const RENDER_HELP: &str = r#"Usage: rmarshal [INPUT...] --render PATH OUTPUT
 
 Read multiple documents, may be none.
@@ -157,6 +217,24 @@ Example:
     rmarshal data.json --render report out
     cat out
             My name is Althea and I have 10 fingers!
+"#;
+
+pub const TOML_HELP: &str = r#"Usage: rmarshal --toml [OPTION...] PATH COMMAND --toml [OPTION...] PATH
+
+Define a file with a TOML document.
+
+Available options:
+        --fix                   Fix document to circumvent serializer errors.
+    -s, --stream[=LIMIT]        Allow multiple documents within a single file. Output only.
+
+Example:
+    cat doc.toml
+            [package]
+            name = "rmarshal"
+    rmarshal --toml doc.toml --copy --toml out.toml
+    cat out.toml
+            [package]
+            name = "rmarshal"
 "#;
 
 pub const TRANSFORM_HELP: &str = r#"Usage: rmarshal [INPUT...] --transform PATH [OUTPUT...]
