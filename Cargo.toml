@@ -3,9 +3,11 @@ name = "rmarshal"
 edition = "2018"
 version = "0.1.0"
 authors = ["Thomas Baron"]
+homepage = "https://github.com/tvbaron/rmarshal"
 repository = "https://github.com/tvbaron/rmarshal"
 license = "MIT"
 description = "Document remarshaller."
+readme = "README.md"
 
 [dependencies]
 indexmap = "1.8"
