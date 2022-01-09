@@ -1,6 +1,6 @@
 # rmarshal
 
-_rmarshal_ is a document processor.
+_rmarshal_ is a document remarshaller.
 
 ## CLI Syntax
 
@@ -10,7 +10,8 @@ _rmarshal_ is a document processor.
                                 | <format> <opt_format_modifiers> <whitespace> <path>
                                 | <document>
                                 | <command>
-    <format>                  ::= "--json"
+    <format>                  ::= "--plain"
+                                | "--json"
                                 | "--lua"
                                 | "--toml"
                                 | "--yaml"
@@ -31,8 +32,9 @@ _rmarshal_ is a document processor.
                                 | "integer"
                                 | "float"
                                 | "string"
+                                | "json"
                                 | "lua"
-    <document_hint_short>     ::= "_" | "N" | "B" | "I" | "F" | "S" | "L"
+    <document_hint_short>     ::= "_" | "N" | "B" | "I" | "F" | "S" | "J" | "L"
     <command>                 ::= "--check"
                                 | "--concat"
                                 | "--copy"
@@ -94,7 +96,7 @@ Any trailing whitespace are removed if the directive ends with `-%>`.
 
 ### Convert a YAML file to a pretty JSON file
 
-    rmarshal sample.yaml --copy --json --pretty out.json
+    rmarshal sample.yaml --copy --json --pretty --eol out.json
 
 ### Merge multiple files into one
 
@@ -106,4 +108,4 @@ Any trailing whitespace are removed if the directive ends with `-%>`.
 
 ### Render a template
 
-    rmarshal sample.json --render report.templ out.txt
+    rmarshal sample.json --render report out.txt
