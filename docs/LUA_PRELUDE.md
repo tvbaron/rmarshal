@@ -60,7 +60,7 @@ Return an iterator of all elements exactly like _ipairs_.
 ##### Usage
 
     local arr1 = Array:from({ "a", "b", "c" })
-    for i, v in arr1:iterator do
+    for i, v in arr1:iterator() do
         i       -- index
         v       -- value
     end
