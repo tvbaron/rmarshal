@@ -210,7 +210,7 @@ Read multiple documents, may be none.
 Write one string-based document.
 
 Example:
-    cat data
+    cat data.json
             {"name":"Althea","fingers":10}
     cat report
             % local data = ctx:get_input(1)
