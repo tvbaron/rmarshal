@@ -2,68 +2,50 @@
 
 _rmarshal_ is a document remarshaller.
 
-## CLI Syntax
+## Overview
 
-    <syntax>                  ::= "--help" | "--version" | <pipeline>
-    <pipeline>                ::= <unit> | <pipeline> <whitespace> <unit>
-    <unit>                    ::= <path>
-                                | <format> <opt_format_modifiers> <whitespace> <path>
-                                | <document>
-                                | <command>
-    <format>                  ::= "--plain"
-                                | "--json"
-                                | "--lua"
-                                | "--toml"
-                                | "--yaml"
-    <opt_format_modifiers>    ::= ""
-                                | <whitespace> "--dots" <opt_format_modifiers>
-                                | <whitespace> "--eol" <opt_format_modifiers>
-                                | <whitespace> "--fix" <opt_format_modifiers>
-                                | <whitespace> "--pretty" <opt_format_modifiers>
-                                | <whitespace> "--stream" <opt_stream_limit> <opt_format_modifiers>
-    <opt_stream_limit>        ::= ""
-                                | "=" <integer>
-    <document>                ::= "--document" <whitespace> <document_hint_long> <whitespace> <text>
-                                | "-D" <whitespace> <document_hint_long> <whitespace> <text>
-                                | "-D" <document_hint_short> <opt_whitespace> <text>
-    <document_hint_long>      ::= "any"
-                                | "nil"
-                                | "boolean"
-                                | "integer"
-                                | "float"
-                                | "string"
-                                | "json"
-                                | "lua"
-    <document_hint_short>     ::= "_" | "N" | "B" | "I" | "F" | "S" | "J" | "L"
-    <command>                 ::= "--check"
-                                | "--concat"
-                                | "--copy"
-                                | "--merge" <merge_modifiers>
-                                | "--pack"
-                                | "--unpack"
-                                | "--render" <whitespace> <path>
-                                | "--transform" <whitespace> <path>
-    <merge_modifiers>         ::= ""
-                                | <whitespace> "--depth" <whitespace> <signed_integer> <merge_modifiers>
-    <path>                    ::= <character> | <character> <path>
-    <text>                    ::= <character> | <character> <text>
-    <character>               ::= <letter> | <digit> | <symbol>
-    <signed_integer>          ::= "-" <integer> | <integer>
-    <integer>                 ::= <digit> | <integer> <digit>
-    <opt_whitespace>          ::= "" | <whitespace>
-    <whitespace>              ::= " " | <whitespace> " "
+### Usage
 
-## Concat
+    rmarshal [INPUT...] COMMAND [OUTPUT...]
 
-Creates an array-based document by concatenating multiple array-based documents.
+### Command Line Interface
 
-    rmarshal INPUT... --concat OUTPUT
+Inputs and outputs are expressed in the same way.
+Before the first command, everything is interpreted as an input.
+After the last command, everything is interpreted as an output.
 
-## Merge
+A PATH may be replaced by - to express either stdin or stdout depending on the context.
 
-Merges multiple documents into one.
+See the [CLI Syntax](docs/CLI_SYNTAX.md) for more details.
+
+## Commands
+
+Commands consume and produce documents.
+
+### Copy
+
+The __copy__ command produces the same number of documents it consumes without any alteration.
+The goal is to change the format of files.
+
+#### Example
+
+    $ cat data.json
+    {"name":"Althea","fingers":10}
+    $ rmarshal data.json --copy out.yaml
+    $ cat out.yaml
+    ---
+    name: Althea
+    fingers: 10
+
+### Merge
+
+The __merge__ command consumes multiple documents and produces one.
+
+#### Usage
 
     rmarshal INPUT... --merge [--depth DEPTH] OUTPUT
+
+#### Depth option
 
 The depth is meant for array and object values. It indicates the merging depth.
 
@@ -73,7 +55,15 @@ For example:
 
 No depth option or a negative value indicates an infinite depth.
 
-## Template
+### Render
+
+The __render__ command consumes multiple documents and produces one string-based one.
+
+#### Usage
+
+    rmarshal [INPUT...] --render PATH OUTPUT
+
+#### Tags
 
 The engine recognizes certain tags in the provided template and converts them based on the following rules:
 
@@ -88,24 +78,60 @@ Any leading whitespace are removed if the directive starts with `<%-`.
 
 Any trailing whitespace are removed if the directive ends with `-%>`.
 
-## Examples
+#### Example
 
-### Convert a JSON file to to a YAML file
+    $ cat data.json
+    {"name":"Althea","fingers":10}
+    $ cat report
+    % local data = ctx:get_input(1)
+    My name is <%= data:get('name') %> and I have <%= data:get('fingers') %> fingers!
+    $ rmarshal data.json --render report out
+    $ cat out
+    My name is Althea and I have 10 fingers!
 
-    rmarshal sample.json --copy out.yaml
+### Transform
 
-### Convert a YAML file to a pretty JSON file
+The __transform__ command consumes and produces multiple documents.
 
-    rmarshal sample.yaml --copy --json --pretty --eol out.json
+#### Usage
 
-### Merge multiple files into one
+    rmarshal [INPUT...] --transform PATH [OUTPUT...]
 
-    rmarshal in1.json in2.toml in3.yaml --merge out.json
+#### Lua Prelude
 
-### Transform a document with a Lua script
+See the [Lua Prelude](docs/LUA_PRELUDE.md) for more details.
 
-    rmarshal sample.json --transform script.lua out.json
+#### Example
 
-### Render a template
+    $ cat data.json
+    {"name":"Althea","fingers":10}
+    $ cat script.lua
+    local data = ctx:get_input(1)
+    data:set("name", "James Hook")
+    data:set("rank", "captain")
+    data:set("fingers", 5)
+    ctx:set_output(data)
+    $ rmarshal data.json --transform script.lua out.yaml
+    $ cat out.yaml
+    ---
+    name: James Hook
+    rank: captain
+    fingers: 5
 
-    rmarshal sample.json --render report out.txt
+### Other commands
+
+Other commands are __check__, __concat__, __pack__ and __unpack__.
+
+## File Format
+
+Available file formats are __plain__, __json__, __toml__, __yaml__ and __lua__.
+
+The __plain__ format is the unformatted format.
+
+## Version History
+
+[Changelog](CHANGELOG.md).
+
+## License
+
+MIT.
