@@ -6,8 +6,12 @@
 ### Added
 - Added Lua prelude functions:
   - Array:from
+  - Array:len
+  - Array:empty
   - Array:map
   - Object:from
+  - Object:len
+  - Object:empty
   - Object:keys
   - Object:values
 

@@ -27,6 +27,10 @@ Commands consume and produce documents.
 The __copy__ command produces the same number of documents it consumes without any alteration.
 The goal is to change the format of files.
 
+#### Usage
+
+    rmarshal [INPUT...] --copy [OUTPUT...]
+
 #### Example
 
     $ cat data.json

@@ -72,6 +72,18 @@ function Array:from(other)
     error('wrong format')
 end
 
+-- Returns the length of the Array represented by this one.
+-- @return [number]
+function Array:len()
+    return #self
+end
+
+-- Returns whether the Array represented by this one is empty.
+-- @return [boolean]
+function Array:empty()
+    return #self == 0
+end
+
 function Array:iterator()
     return ipairs(self)
 end
@@ -177,6 +189,18 @@ function Object:from(other)
     end
 
     error('wrong format')
+end
+
+-- Returns the number of entries.
+-- @return [number]
+function Object:len()
+    return #self._keys
+end
+
+-- Returns whether the Object represented by this one is empty.
+-- @return [boolean]
+function Object:empty()
+    return #self._keys == 0
 end
 
 -- Deletes a given key and its value.
