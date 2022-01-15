@@ -194,12 +194,12 @@ pub fn from_lua_table(table: LuaTable) -> Value {
         } else if cname == "Object" {
             let mut o = IndexMap::new();
             let keys: LuaTable =
-                    match table.get("keys") {
+                    match table.get("_keys") {
                         Ok(k) => k,
                         Err(_) => panic!("wrong object (keys)"),
                     };
             let values: LuaTable =
-                    match table.get("values") {
+                    match table.get("_values") {
                         Ok(k) => k,
                         Err(_) => panic!("wrong object (values)"),
                     };
