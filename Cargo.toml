@@ -1,7 +1,7 @@
 [package]
 name = "rmarshal"
 edition = "2018"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Thomas Baron"]
 homepage = "https://github.com/tvbaron/rmarshal"
 repository = "https://github.com/tvbaron/rmarshal"

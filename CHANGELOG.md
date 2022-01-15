@@ -1,6 +1,6 @@
 # Changelog - rmarshal
 
-## [Unreleased]
+## [0.1.1] - 2022-01-15
 ### Changed
 - Changed docs.
 ### Added
